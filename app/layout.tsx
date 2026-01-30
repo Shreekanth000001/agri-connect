@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {NextIntlClientProvider, useFormatter} from 'next-intl';
 import "./globals.css";
 import Header from "./ui/Header"
 import Footer from "./ui/Footer"
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body
         className={`flex flex-col min-h-screen relative`}>
           <Header/>
+          <NextIntlClientProvider>
         {children}
+        </NextIntlClientProvider>
         <Footer/> 
       </body>
     </html>

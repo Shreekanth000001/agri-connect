@@ -59,6 +59,7 @@ model ProductAuction {
   endTime       DateTime
   auctionStatus AuctionStatus @default(OPEN)
   category      Category      @default(OTHER)
+  imageUrl      String @default("")
   CreatedAt     DateTime      @default(now())
   user_fid      User          @relation("ProdFidRelation", fields: [fid], references: [uid])
   auc_bid       BidId[]       @relation("bidRelation")

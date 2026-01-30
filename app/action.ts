@@ -1,48 +1,38 @@
+"use server"
 import { prisma } from '@/lib//prisma';
-import { revalidatePath } from 'next/cache'
+import { v2 as cloudinary } from 'cloudinary';
 
-// 1. Initialize Prisma
-// const prisma = new PrismaClient()
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// 2. The Server Action
-// export async function createListing(formData: FormData) {
-//   "use server"
-//   // Extract data from the form
-//   // (In a real app, we would validate this with Zod)
-//   const cropName = formData.get('cropName') as string
-//   const quantity = formData.get('quantity') as string
-//   const price = formData.get('price') as string
+export async function createListing(formData: FormData) {
+  // const file = formData.get('image') as File;
+  
+  // // 1. Convert file to Buffer for Cloudinary
+  // const arrayBuffer = await file.arrayBuffer();
+  // const buffer = new Uint8Array(arrayBuffer);
+  
+  // // 2. Upload to Cloudinary
+  // const uploadResult: any = await new Promise((resolve, reject) => {
+  //   cloudinary.uploader.upload_stream({}, (error, result) => {
+  //     if (error) reject(error);
+  //     else resolve(result);
+  //   }).end(buffer);
+  // });
 
-//   // 3. Save to Database
-//   // We are hardcoding the userId for now because we don't have login yet
-//   // We will create a "Test Farmer" automatically if one doesn't exist
+  // const finalVideoUrl = uploadResult.secure_url; // "https://res.cloudinary..."
 
-//   // Find or create a dummy user to own this listing
-//   let user = await prisma.user.findFirst({ where: { uemail: 'farmer@test.com' }})
-
-//   if (!user) {
-//     user = await prisma.user.create({
-//       data: {
-//         uname: 'Test Farmer',
-//         uemail: 'farmer@test.com',
-//       }
-//     })
-//   }
-
-//   // Create the listing
-//   await prisma.listing.create({
-//     data: {
-//       cropName: cropName,
-//       quantity: parseFloat(quantity),
-//       unit: 'kg',             // Defaulting to kg for now
-//       pricePerUnit: parseFloat(price),
-//       userId: user.id,
-//     },
-//   })
-
-//   // 4. Refresh the page so the new data shows up
-//   revalidatePath('/dashboard')
-// }
+  // 3. Save to Prisma (WE ONLY SAVE THE TEXT URL)
+  // await prisma.productAuction.create({
+  //   data: {
+  //     // ... other fields ...
+  //     imageUrl: finalVideoUrl, 
+  //   },
+  // });
+}
 
 export async function buttonAct() {
   "use server"
@@ -55,7 +45,6 @@ export async function buttonAct() {
       deliveryDate: new Date("2026-01-26")
     }
   })
-  console.log(new Response(JSON.stringify(bid)));
 }
 
 export async function buttonAct2() {
@@ -69,5 +58,4 @@ export async function buttonAct2() {
       endTime: new Date("2026-01-26")
     }
   })
-  console.log(new Response(JSON.stringify(bid)));
 }
