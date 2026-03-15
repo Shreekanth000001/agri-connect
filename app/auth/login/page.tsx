@@ -1,4 +1,4 @@
-"use client"
+
 export default function page() {
     return (
         <>
@@ -13,7 +13,7 @@ export default function page() {
                 </div>
 
                 <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-                    <form action="#" method="POST" className="space-y-6">
+                    <form action="/auth/loginauth" method="POST" className="space-y-6">
                         <div>
                             <label htmlFor="email" className="block text-sm/6 font-medium">
                                 Email address

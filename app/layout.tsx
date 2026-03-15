@@ -17,7 +17,6 @@ export default async function RootLayout({
 }>) {
   const headerList = await headers();
   const pathname = headerList.get("x-current-path");
-  console.log(pathname);
   function renderpaths() {
     if (pathname === '/auth/login' || pathname === '/auth/signup') {
       return (<> {children} </>)
