@@ -1,5 +1,25 @@
+"use client"
+import { FormEvent } from 'react'
 
 export default function page() {
+    async function handleLogin(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const email = formData.get("email");
+        const password = formData.get("password");
+
+        const user = await fetch("http://localhost:3000//auth/loginauth", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body:JSON.stringify({
+                'email':email,
+                'password':password
+            })
+        })
+        console.log(user);
+    }
     return (
         <>
             <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
@@ -13,7 +33,7 @@ export default function page() {
                 </div>
 
                 <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-                    <form action="/auth/loginauth" method="POST" className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-6">
                         <div>
                             <label htmlFor="email" className="block text-sm/6 font-medium">
                                 Email address

@@ -1,34 +1,34 @@
 "use server"
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib//prisma';
-
 const bcrypt = require('bcrypt');
-const saltRounds = 10;
-const myPlaintextPassword = 's0/\/\P4$$w0rD';
-const someOtherPlaintextPassword = 'not_bacon';
 
 export async function POST(req: Request) {
-    let erro;
-    let hashed;
-    bcrypt.hash(myPlaintextPassword, saltRounds, function(err:Object, hash: String) {
-    erro=err;
-    hashed=hash;
-});
 
-      const userdetails = await req.json();
-      console.log(erro," ", hashed);
-      console.log(userdetails);
-    const user = await prisma.user.create({
-        data: {
-            'uid':userdetails.uid,
-            'uname':userdetails.uname,
-            'uemail':userdetails.uemail,
-            'uphone':userdetails.uphone,
-            'ugeo':userdetails.ugeo
+    try {
+        const usercred = await req.json();
+        const { email, password } = usercred;
+
+        const user = await prisma.user.findFirst({
+            where: { uemail: email }
+        })
+
+        if (!user) {
+            console.log("no user found")
         }
-    });
-    return new Response(JSON.stringify(user));
+        else{
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if(isPasswordValid){
+                return NextResponse.json("logged in",{status:200});
+            }
+            else{
+                console.log("Password not matched");
+                return NextResponse.json({error:"Password not matched"},{status:500});
+            }
+        }
+    }
+    catch(error){
+        console.log("some error in login",error)
+        return NextResponse.json({error:"error in login auth route"},{status:500});
+    }
 }
- export async function GET(){
-    console.log("get working");
-    return new Response("get is working yo");
- }

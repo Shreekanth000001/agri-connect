@@ -18,16 +18,16 @@ export default function page() {
             console.log(password, conpassword);
         }
         async function submitUser() {
-            const result = await fetch("http://localhost:3000/auth/loginauth",
+            const result = await fetch("http://localhost:3000/auth/signupauth",
                 {
                     method: "POST",
                     headers: {
                         'content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        'uid': 4,
                         'uname': name,
                         'uemail': email,
+                        'password':password,
                         'uphone': 12435345,
                         'ugeo': 'Hubbli'
                     })

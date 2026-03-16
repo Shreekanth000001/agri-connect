@@ -10,4 +10,4 @@ to do - Design roboust db schema accounting for all the factors
         Secure Api
         Cache and SEO performance
 
-current problems - auto increment for user resulting in error, have to amnually add user id
+current problems 
