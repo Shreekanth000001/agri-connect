@@ -26,7 +26,7 @@ model User {
   uname     String
   uemail    String           @unique
   password  String           @default("")
-  uphone    Int
+  uphone    String           @default("")
   ugeo      String
   uloc      String           @default("")
   role      Role             @default(FARMER)

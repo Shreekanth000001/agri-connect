@@ -19,6 +19,10 @@ export async function POST(req: Request) {
         else {
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (isPasswordValid) {
+
+                // 
+                        
+                // 
                 return NextResponse.json("logged in", { status: 200 });
             }
             else {
