@@ -17,19 +17,19 @@ export async function POST(req: Request) {
             data: {
                 'uname': uname,
                 'uemail': uemail,
-                'password':hashedPassword,
+                'password': hashedPassword,
                 'uphone': uphone,
                 'ugeo': ugeo
             }
         });
-        const {password:_, ...userWithoutPassword} =user;
+        const { password: _, ...userWithoutPassword } = user;
 
-        return NextResponse.json(userWithoutPassword ,{status:201});
+        return NextResponse.json(userWithoutPassword, { status: 201 });
 
     }
     catch (error) {
         console.log(error);
-        return NextResponse.json({error:"error in creating user"},{status:500})
+        return NextResponse.json({ error: "error in creating user" }, { status: 500 })
     }
 }
 export async function GET() {

@@ -16,19 +16,19 @@ export async function POST(req: Request) {
         if (!user) {
             console.log("no user found")
         }
-        else{
+        else {
             const isPasswordValid = await bcrypt.compare(password, user.password);
-            if(isPasswordValid){
-                return NextResponse.json("logged in",{status:200});
+            if (isPasswordValid) {
+                return NextResponse.json("logged in", { status: 200 });
             }
-            else{
+            else {
                 console.log("Password not matched");
-                return NextResponse.json({error:"Password not matched"},{status:500});
+                return NextResponse.json({ error: "Password not matched" }, { status: 500 });
             }
         }
     }
-    catch(error){
-        console.log("some error in login",error)
-        return NextResponse.json({error:"error in login auth route"},{status:500});
+    catch (error) {
+        console.log("some error in login", error)
+        return NextResponse.json({ error: "error in login auth route" }, { status: 500 });
     }
 }

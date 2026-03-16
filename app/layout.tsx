@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { NextIntlClientProvider, useFormatter } from 'next-intl';
+import { NextIntlClientProvider } from 'next-intl';
 import "./globals.css";
 import { headers } from "next/headers";
 import Header from "./ui/Header"
