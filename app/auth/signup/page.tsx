@@ -60,14 +60,14 @@ export default function RegisterPage() {
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                
+
                 {/* Error Display */}
                 {/* {error && <p className="text-red-500 text-sm mb-4">{error}</p>} */}
                 {/* {state?.message && <p className="text-red-500 text-sm mb-4">{state.message}</p>} */}
 
                 {/* The Single Form */}
                 <form action={formAction}>
-                    
+
                     {/* Hidden inputs ensure the Server Action receives ALL data, even from previous steps */}
                     <input type="hidden" name="name" value={formData.name} />
                     <input type="hidden" name="email" value={formData.email} />
@@ -137,7 +137,7 @@ export default function RegisterPage() {
                         <div className="text-center">
                             <h3 className="text-xl font-bold mb-4">Welcome to Agri Connect!</h3>
                             <p className="text-gray-600 mb-6">Review your details and finalize your account creation.</p>
-                            
+
                             <div className="flex gap-2">
                                 <button type="button" onClick={() => setStep(2)} className="w-1/3 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 disabled:opacity-50" disabled={isPending}>
                                     Back

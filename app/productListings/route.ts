@@ -14,17 +14,10 @@ export async function POST( req: Request) {
   return returns;
 }
 
-// export async function POST() {
-//   let bid = await prisma.productAuction.create({
-//     data: {
-//       fid: 2,
-//       title: 'Banana',
-//       description: 'Medium size',
-//       startingBid: 80,
-//       endTime: new Date("2026-01-27")
-//     }
-//   })
+export async function Get(id : Number) {
+   const proddata = await prisma.productAuction.findUnique({ where: { ProdAucId: Number(id) } });
+   console.log(JSON.stringify(proddata))
 
-//   return new Response(JSON.stringify(bid));
-// }
+  return new Response(Object(proddata));;
+}
 
