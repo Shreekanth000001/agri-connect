@@ -20,7 +20,7 @@ export default function ImgUpload({ onUploadSuccess }: ImgUploadProp) {
         >
             {({ open }) => {
                 return (
-                    <button type='button' onClick={() => open()} className="w-2/3 bg-green-600 text-white py-2 rounded-md hover:bg-green-500 m-1">
+                    <button type='button' onClick={() => open()} className="relative cursor-pointer rounded-md bg-transparent font-semibold text-[#009C25] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#009C25]  hover:text-green-500">
                         Upload Images
                     </button>
                 );
@@ -28,3 +28,4 @@ export default function ImgUpload({ onUploadSuccess }: ImgUploadProp) {
         </CldUploadWidget >
     );
 }
+

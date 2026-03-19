@@ -1,7 +1,6 @@
 import 'server-only';
 import { SignJWT, jwtVerify } from 'jose'
 import { prisma } from '@/lib//prisma';
-// import { FormState } from '@/lib/definitions'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
@@ -46,6 +45,17 @@ export async function createSession(userId: string) {
     sameSite: 'lax',
     path: '/',
   })
+}
+
+export async function getUserSession(){
+  const cookiesStore = await cookies();
+  const sessionCookie = cookiesStore.get('session')?.value;
+
+  if(!sessionCookie) return null;
+
+  const session = await decrypt(sessionCookie);
+
+  return session?.userDetails as {uid: number; uname : string} | null;
 }
 
 export async function updateSession() {

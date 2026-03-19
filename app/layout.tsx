@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from 'next-intl';
 import "./globals.css";
+import {getUserSession} from '@/lib/session'
+import { SessionProvider } from '@/lib/SessionProvider';
 import { headers } from "next/headers";
 import Header from "./ui/Header"
 import Footer from "./ui/Footer"
@@ -17,6 +19,7 @@ export default async function RootLayout({
 }>) {
   const headerList = await headers();
   const pathname = headerList.get("x-current-path");
+  const session = await getUserSession();
   function renderpaths() {
     if (pathname === '/auth/login' || pathname === '/auth/signup') {
       return (<> {children} </>)
@@ -25,7 +28,9 @@ export default async function RootLayout({
       return (<>
       <Header />
         <NextIntlClientProvider>
+          <SessionProvider session={session}>
           {children}
+          </SessionProvider>
         </NextIntlClientProvider>
         <Footer />
         </>);
@@ -34,7 +39,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`flex flex-col min-h-screen relative`}>
+        className={`relative`}>
         {renderpaths()}
       </body>
     </html>
