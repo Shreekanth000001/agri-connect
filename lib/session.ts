@@ -33,7 +33,8 @@ export async function createSession(userId: string) {
   })
   const uid = user?.uid;
   const uname = user?.uname;
-  const userDetails = { uid, uname };
+  const uloc = user?.uloc;
+  const userDetails = { uid, uname,uloc };
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const session = await encrypt({ userDetails, expiresAt })
   const cookieStore = await cookies()

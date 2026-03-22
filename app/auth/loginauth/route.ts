@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib//prisma';
 const bcrypt = require('bcrypt');
+import { createSession } from '@/lib/session'
 
 export async function POST(req: Request) {
 
@@ -20,9 +21,7 @@ export async function POST(req: Request) {
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (isPasswordValid) {
 
-                // 
-                        
-                // 
+                await createSession(String(user));
                 return NextResponse.json("logged in", { status: 200 });
             }
             else {

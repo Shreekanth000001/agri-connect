@@ -1,156 +1,208 @@
 "use client"
 
-import { useState, useActionState } from 'react';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { signup } from '@/lib/auth';
 
+const LocationPicker = dynamic(() => import('@/app/auth/signup/LocationPicker'), {
+    ssr: false,
+    loading: () => <div className="h-[400px] w-full bg-gray-100 animate-pulse flex items-center justify-center">Loading Map...</div>
+});
+
 export default function RegisterPage() {
-    const [step, setStep] = useState(1);
-    const [error, setError] = useState("");
-    const [state, formAction, isPending] = useActionState(signup, undefined);
+    const [loc, setLoc] = useState('')
 
-    // 1. Centralize all form data in one state object
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        address: "",
-        stateName: "",
-        pincode: "",
-        ph: ""
-    });
-
-    // 2. Universal handler for all inputs
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleLocationSelect = (formattedLocation: string) => {
+        setLoc(formattedLocation);
+        console.log("User dropped pin at:", formattedLocation);
     };
 
-    // 3. Step validation functions
-    const handleNextStep1 = () => {
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
-            return;
-        }
-        setError("");
-        setStep(2);
-    };
+    return (<div className='px-6 md:px-[20%] mt-6 pb-10'>
+        <form action={signup}>
+            <div className="space-y-12">
+                <div className="border-b border-gray-900/10 pb-12">
+                    <div className="text-2xl font-semibold text-gray-900">Registration Form</div>
+                    <p className="mt-1 text-sm/6 text-gray-600">
+                        Enter the following details to register to Agri Connect
+                    </p>
 
-    const handleNextStep2 = () => {
-        // You can add empty field validation here if needed
-        setStep(3);
-    };
-
-    // Note: We combine the address fields here so the Server Action gets the final string
-    const fullGeoLocation = `${formData.address}, ${formData.stateName}, ${formData.pincode}`;
-
-    return (
-        <div className="min-h-screen bg-gray-50 flex flex-col py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-                <img className="mx-auto h-10 w-auto" src="https://www.svgrepo.com/show/301692/login.svg" alt="Workflow" />
-                <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Create a new account</h2>
-            </div>
-
-            {/* Step Indicators */}
-            <div className='flex justify-center items-center mt-8'>
-                <div className={`${step >= 1 ? 'bg-green-600' : 'bg-green-400'} w-3 h-3 rounded-full`}></div>
-                <hr className={`w-10 mx-1 ${step >= 2 ? 'border-green-600' : 'border-gray-300'}`} />
-                <div className={`${step >= 2 ? 'bg-green-600' : 'bg-green-400'} w-3 h-3 rounded-full`}></div>
-                <hr className={`w-10 mx-1 ${step >= 3 ? 'border-green-600' : 'border-gray-300'}`} />
-                <div className={`${step >= 3 ? 'bg-green-600' : 'bg-green-400'} w-3 h-3 rounded-full`}></div>
-            </div>
-
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-
-                {/* Error Display */}
-                {/* {error && <p className="text-red-500 text-sm mb-4">{error}</p>} */}
-                {/* {state?.message && <p className="text-red-500 text-sm mb-4">{state.message}</p>} */}
-
-                {/* The Single Form */}
-                <form action={formAction}>
-
-                    {/* Hidden inputs ensure the Server Action receives ALL data, even from previous steps */}
-                    <input type="hidden" name="name" value={formData.name} />
-                    <input type="hidden" name="email" value={formData.email} />
-                    <input type="hidden" name="password" value={formData.password} />
-                    <input type="hidden" name="geo" value={fullGeoLocation} />
-                    <input type="hidden" name="ph" value={formData.ph} />
-
-                    {/* STEP 1 */}
-                    {step === 1 && (
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Name</label>
-                                <input name="name" value={formData.name} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Email</label>
-                                <input type="email" name="email" value={formData.email} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Password</label>
-                                <input type="password" name="password" value={formData.password} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
-                                <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <button type="button" onClick={handleNextStep1} className="w-full mt-4 bg-green-600 text-white py-2 rounded-md hover:bg-green-500">
-                                Next
-                            </button>
-                        </div>
-                    )}
-
-                    {/* STEP 2 */}
-                    {step === 2 && (
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Home Address</label>
-                                <input name="address" value={formData.address} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="w-1/2">
-                                    <label className="block text-sm font-medium text-gray-700">State</label>
-                                    <input name="stateName" value={formData.stateName} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                                </div>
-                                <div className="w-1/2">
-                                    <label className="block text-sm font-medium text-gray-700">Pincode</label>
-                                    <input name="pincode" value={formData.pincode} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+                        <div className="sm:col-span-2">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Your Name
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="name"
+                                        name="name"
+                                        type="text"
+                                        placeholder="Shubham"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                                <input name="ph" value={formData.ph} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                            </div>
-                            <div className="flex gap-2 mt-4">
-                                <button type="button" onClick={() => setStep(1)} className="w-1/3 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300">
-                                    Back
-                                </button>
-                                <button type="button" onClick={handleNextStep2} className="w-2/3 bg-green-600 text-white py-2 rounded-md hover:bg-green-500">
-                                    Next
-                                </button>
+                        </div>
+                        <div className="sm:col-span-4"></div>
+
+                        <div className="col-span-3">
+                            <label htmlFor="description" className="block text-sm/6 font-medium text-gray-900">
+                                Your Email
+                            </label>
+                            <div className="mt-2">
+                                <input
+                                    id="email"
+                                    name="email"
+                                    placeholder='shubham@gmail.com'
+                                    className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#009C25] sm:text-sm/6"
+                                    defaultValue={''}
+                                />
                             </div>
                         </div>
-                    )}
+                        <div className="sm:col-span-3"></div>
 
-                    {/* STEP 3 */}
-                    {step === 3 && (
-                        <div className="text-center">
-                            <h3 className="text-xl font-bold mb-4">Welcome to Agri Connect!</h3>
-                            <p className="text-gray-600 mb-6">Review your details and finalize your account creation.</p>
-
-                            <div className="flex gap-2">
-                                <button type="button" onClick={() => setStep(2)} className="w-1/3 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 disabled:opacity-50" disabled={isPending}>
-                                    Back
-                                </button>
-                                {/* Only the final step has type="submit" */}
-                                <button type="submit" disabled={isPending} className="w-2/3 bg-green-600 text-white py-2 rounded-md hover:bg-green-500 disabled:bg-green-400">
-                                    {isPending ? 'Creating Account...' : 'Create Account'}
-                                </button>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Password
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        placeholder="*****"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
                             </div>
                         </div>
-                    )}
-                </form>
+                        <div className='sm:col-span-4' id='grid-filler1'></div>
+
+                        <div className="sm:col-span-4">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Address
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <textarea
+                                        id="address"
+                                        name="address"
+                                        rows={3}
+                                        placeholder="Apple"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="sm:col-span-2"></div>
+
+                        <div className="sm:col-span-2">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                State
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="state"
+                                        name="state"
+                                        type="text"
+                                        placeholder="Apple"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Pincode
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="pincode"
+                                        name="pincode"
+                                        type="text"
+                                        placeholder="Apple"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='sm:col-span-2' id='grid-filler1'></div>
+
+                        <div className="sm:col-span-1">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Country Code
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex w-16 items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="cnum"
+                                        name="cnum"
+                                        type="number"
+                                        placeholder="001"
+                                        className="block  min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label htmlFor="prodName" className="block text-sm/6 font-medium text-gray-900">
+                                Phone number
+                            </label>
+                            <div className="mt-2">
+                                <div className="flex items-center rounded-md bg-white pl-3 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[#009C25]">
+                                    <input
+                                        id="ph"
+                                        name="ph"
+                                        type="number"
+                                        placeholder="001"
+                                        className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='col-span-3'></div>
+
+                        <div className="flex flex-col col-span-6">
+                            <label className="block text-sm font-medium text-gray-900">
+                                Pinpoint your Farm Location
+                            </label>
+                            <p className="text-sm text-gray-500">Click anywhere on the map to set your exact location.</p>
+
+                            {/* 2. THE MAP COMPONENT */}
+                            <LocationPicker onLocationSelect={handleLocationSelect} />
+
+                            {/* 3. THE HIDDEN INPUT */}
+                            {/* This bridges your React state to your Server Action formData */}
+                            <input type="hidden" name="loc" value={loc} />
+
+                            {loc && <p className="text-xs text-green-600">Location captured successfully!</p>}
+                        </div>
+
+
+                    </div>
+                </div>
+
             </div>
-        </div>
+
+            <div className="mt-6 flex items-center justify-end gap-x-6">
+                <button type="button" className="text-sm/6 font-semibold text-gray-900">
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    className="rounded-md bg-[#009C25]  px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-green-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#009C25] "
+                >
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
     );
 }
