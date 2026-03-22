@@ -97,7 +97,7 @@ export default function AucForm() {
                                         <input
                                             id="startTime"
                                             name="startTime"
-                                            type="date"
+                                            type="datetime-local"
                                             placeholder="Apple"
                                             className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
                                         />
@@ -114,7 +114,7 @@ export default function AucForm() {
                                         <input
                                             id="endTime"
                                             name="endTime"
-                                            type="date"
+                                            type="datetime-local"
                                             placeholder="Apple"
                                             className="block min-w-0 grow bg-white py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
                                         />
@@ -143,38 +143,31 @@ export default function AucForm() {
                                     </div>
                                 </div>
                             </div>
+{/* 1. Limit Message: Only renders if limit is reached */}
+                            {imgLimit && (
+                                <div className="col-span-full p-4 mt-2 bg-red-50 text-red-600 rounded-md font-medium text-sm text-center border border-red-200">
+                                    Image Limit Reached: 5
+                                </div>
+                            )}
 
-                            {imgs.length > 0 && (<div className='col-span-4'>
-                                <div className='flex'>
-                                    {imgs.map(img =>
-                                        <div key={img} className=''>
-                                            <img src={img} />
+                            {/* 2. Upload Box: Uses CSS 'hidden' instead of being unmounted by React */}
+                            <div className={`col-span-full ${imgLimit ? 'hidden' : 'block'}`}>
+                                <p className="block text-sm/6 font-medium text-gray-900">
+                                    Cover photo
+                                </p>
+                                <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-900/25 px-6 py-10">
+                                    <div className="text-center">
+                                        <PhotoIcon aria-hidden="true" className="mx-auto size-12 text-gray-300" />
+                                        <div className="mt-4 flex text-sm/6 text-gray-600 justify-center">
+                                            <div className="relative cursor-pointer rounded-md bg-transparent font-semibold text-[#009C25] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#009C25] hover:text-green-600">
+                                                <ImgUpload onUploadSuccess={handleImgs} />
+                                            </div>
+                                            <p className="pl-1 text-gray-600">PNG, JPG, up to 10MB</p>
                                         </div>
-                                    )}
+                                        <p className="text-xs/5 text-gray-600 mt-2">Up to 5 Images</p>
+                                    </div>
                                 </div>
                             </div>
-                            )}
-                            {imgLimit ? <div>Img Limit Reached: 5 </div>
-                                :
-                                <div className="col-span-full">
-                                    <p className="block text-sm/6 font-medium text-gray-900">
-                                        Cover photo
-                                    </p>
-                                    <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-900/25 px-6 py-10">
-                                        <div className="text-center">
-                                            <PhotoIcon aria-hidden="true" className="mx-auto size-12 text-gray-300" />
-                                            <div className="mt-4 flex text-sm/6 text-gray-600">
-                                                <p
-                                                    className="relative cursor-pointer rounded-md bg-transparent font-semibold text-[#009C25] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#009C25] hover:text-indigo-500"
-                                                >
-                                                    <ImgUpload onUploadSuccess={handleImgs} />
-                                                </p>
-                                                <p className="pl-1">PNG, JPG, JPEG, WEBP up to 10MB</p>
-                                            </div>
-                                            <p className="text-xs/5 text-gray-600">Upto 5 Images</p>
-                                        </div>
-                                    </div>
-                                </div>}
                         </div>
                         </div>
 
