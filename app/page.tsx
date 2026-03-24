@@ -23,7 +23,7 @@ export default function Home() {
     bringData()
   }, [])
   return (
-    <div className="grow">
+    <div className="grow min-h-[80vh]">
       {/* <button className="hover:bg-white" onClick={buttonAct}>Send</button> */}
       <div className="p-6 ml-3.5">
         <p className="text-3xl font-semibold">Categories</p>

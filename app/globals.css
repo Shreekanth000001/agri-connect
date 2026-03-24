@@ -9,5 +9,5 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* Hide standard arrows in Firefox */
 input[type="number"] {
-  -moz-appearance: textfield;
+  appearance: textfield;
 }

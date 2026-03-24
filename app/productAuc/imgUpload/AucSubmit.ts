@@ -1,7 +1,8 @@
 "use server"
 import { prisma } from '@/lib//prisma';
-import { redirect } from 'next/navigation'
-import {Category} from '@prisma/client'
+import { redirect } from 'next/navigation';
+import {Category} from '@prisma/client';
+
 export default async function AucFormSubmit( formData: FormData) {
     try {
         const fid = Number(formData.get('uid'));

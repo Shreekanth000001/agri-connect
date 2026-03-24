@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import Link from "next/link";
+import BidForm from '@/app/product/ProdUI/BidForm'
 import { getUserSession } from '@/lib/session'; 
 import MapWrapper from '@/app/product/MapWrapper';
 import ImageGallery from '@/app/product/ProdUI/page';
@@ -101,24 +102,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
 
               {/* Unified Input & Button Group */}
               <div className="mt-8 bg-gray-50 p-6 rounded-xl border border-gray-100 shadow-sm">
-                <label htmlFor='bid' className='block text-sm font-bold text-gray-900 mb-2'>Place Your Bid</label>
-                <div className="flex rounded-lg shadow-sm">
-                  {/* Currency Prefix */}
-                  <span className="inline-flex items-center rounded-l-lg border border-r-0 border-gray-300 bg-white px-4 text-gray-500 font-semibold sm:text-sm">
-                    ₹
-                  </span>
-                  <input 
-                    id='bid' 
-                    type='number' 
-                    placeholder={String(proddata.startingBid + 10)} 
-                    className="block w-full min-w-0 flex-1 border-gray-300 border px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-[#009C25] focus:ring-[#009C25] sm:text-base outline-0" 
-                  />
-                  <button className="relative -ml-px inline-flex items-center space-x-2 rounded-r-lg border border-transparent bg-[#009C25] px-8 py-3 text-sm font-bold text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-[#009C25] focus:ring-offset-2 transition-colors">
-                    Bid
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">Enter an amount higher than the current bid.</p>
-              </div>
+    <label htmlFor='bid' className='block text-sm font-bold text-gray-900 mb-2'>Place Your Bid</label>
+    
+    {/* Drop the Client Component right here! */}
+    <BidForm 
+    aucId={proddata.ProdAucId} 
+    farmerId={proddata.fid} 
+    startingBid={proddata.startingBid} 
+    buyerId={session?.uid || null} 
+/>
+    
+    <p className="mt-2 text-xs text-gray-500">Enter an amount higher than the current bid.</p>
+</div>
             </div>
 
             {/* Map Section */}

@@ -83,7 +83,7 @@ model BidId {
   fid          Int
   bidAmount    Float
   bidTime      DateTime       @default(now())
-  deliveryDate DateTime
+  deliveryDate DateTime?
   status       Status         @default(PENDING)
   ujoinedAt    DateTime       @default(now())
   user_cid     User           @relation("cidRelation", fields: [cid], references: [uid])

@@ -39,7 +39,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`relative`}>
+        className="relative h-screen">
         {renderpaths()}
       </body>
     </html>

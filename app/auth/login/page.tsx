@@ -8,7 +8,7 @@ export default function page() {
         const email = formData.get("email");
         const password = formData.get("password");
 
-        const user = await fetch("http://localhost:3000//auth/loginauth", {
+        const user = await fetch("http://localhost:3000/auth/login/loginauth", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
