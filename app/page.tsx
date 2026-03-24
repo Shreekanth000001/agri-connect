@@ -6,7 +6,8 @@ import Link from "next/link";
 
 export default function Home() {
   const format = useFormatter();
-  const [data, setData] = useState([])
+  const [data, setData] = useState([]);
+  // console.log(data[0].imageUrl)
   function bringData() {
     fetch('http://localhost:3000/productsroute').then(res => res.json().then(data => setData(data)))
   }
@@ -33,7 +34,7 @@ export default function Home() {
             data.map(
               (item: any) =>
                 <div key={item.ProdAucId} className="border-[#009C25] border rounded-t-lg w-56.25 overflow-hidden">
-                  <img className="w-56 h-38.5" src="https://cdn.britannica.com/22/187222-050-07B17FB6/apples-on-a-tree-branch.jpg" />
+                  <img className="w-56 h-38.5" src={item.imageUrl?.[0] || '/agri-conn.png'} />
                   <div className="p-1" >
                     <p className="font-light text-xl">{item.title}</p>
 
