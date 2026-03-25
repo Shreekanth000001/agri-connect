@@ -1,7 +1,7 @@
 "use server"
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
-import { Category } from '@prisma/client';
+import { Category } from '@/generated/prisma';
 
 export default async function AucFormSubmit(formData: FormData) {
     try {
