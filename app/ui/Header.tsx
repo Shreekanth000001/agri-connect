@@ -1,17 +1,20 @@
-'use client'
+'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useUser } from '@/lib/SessionProvider'; // Pulling in your existing session state!
 
 export default function Header() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [isMenuOpen, setIsMenuOpen] = useState(false); // State for the dropdown menu
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    
     const router = useRouter();
-
     const pathname = usePathname();
+    
+    // Grab the logged-in user (will be null if they are completely logged out)
+    const user = useUser(); 
 
-    // 2. If we are on login or signup, render absolutely nothing.
+    // Hide header entirely on auth pages
     if (pathname === '/auth/login' || pathname === '/auth/signup') {
         return null; 
     }
@@ -20,6 +23,18 @@ export default function Header() {
         e.preventDefault(); 
         if (searchQuery.trim()) {
             router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+            setIsMenuOpen(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            // Hit our new logout route to destroy the cookie
+            await fetch('/api/auth/logout', { method: 'POST' });
+            router.push('/auth/login');
+            router.refresh(); // Force the app to clear the cached session state
+        } catch (error) {
+            console.error("Failed to log out", error);
         }
     };
 
@@ -29,7 +44,6 @@ export default function Header() {
             {/* LEFT SIDE: Menu + Branding */}
             <div className="flex items-center gap-4">
                 
-                {/* Menu Wrapper for Absolute Positioning */}
                 <div className="relative">
                     {/* Hamburger Button */}
                     <button 
@@ -45,48 +59,57 @@ export default function Header() {
                     {/* Dropdown Menu */}
                     {isMenuOpen && (
                         <div className="absolute left-0 mt-3 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 overflow-hidden">
-                            <Link 
-                                href="/dashboard" 
-                                onClick={() => setIsMenuOpen(false)}
-                                className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors"
-                            >
-                                Dashboard
+                            {/* ALWAYS VISIBLE */}
+                            <Link href="/" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                Home
                             </Link>
-                            <Link 
-                                href="/profile" 
-                                onClick={() => setIsMenuOpen(false)}
-                                className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors"
-                            >
-                                Profile
-                            </Link>
-                            <Link 
-                                href="/about" 
-                                onClick={() => setIsMenuOpen(false)}
-                                className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors"
-                            >
-                                About
-                            </Link>
-                            <Link 
-                                href="/contact" 
-                                onClick={() => setIsMenuOpen(false)}
-                                className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors"
-                            >
-                                Contact Us
-                            </Link>
+
+                            {/* LOGGED IN VIEW */}
+                            {user?.uid ? (
+                                <>
+                                    <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        Dashboard
+                                    </Link>
+                                    <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        Profile
+                                    </Link>
+                                    <Link href="/about" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        About
+                                    </Link>
+                                    <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        Contact Us
+                                    </Link>
+                                    <div className="border-t border-gray-100 my-1"></div>
+                                    <button onClick={() => { setIsMenuOpen(false); handleLogout(); }} className="block w-full text-left px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
+                                        Log Out
+                                    </button>
+                                </>
+                            ) : (
+                                /* LOGGED OUT VIEW */
+                                <>
+                                    <Link href="/about" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        About
+                                    </Link>
+                                    <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        Contact Us
+                                    </Link>
+                                    <div className="border-t border-gray-100 my-1"></div>
+                                    <Link href="/auth/login" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-bold text-[#009C25] hover:bg-green-50 transition-colors">
+                                        Log In
+                                    </Link>
+                                    <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
+                                        Sign Up
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Logo & Brand Name */}
                 <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-                    <img 
-                        src="/agri-conn-logo.png" 
-                        alt="Agri-Connect Logo" 
-                        className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
-                    />
-                    <span className="font-bold text-xl text-[#009C25] hidden sm:block tracking-tight">
-                        Agri-Connect
-                    </span>
+                    <img src="/agri-conn-logo.png" alt="Agri-Connect Logo" className="h-8 w-8 sm:h-10 sm:w-10 object-contain"/>
+                    <span className="font-bold text-xl text-[#009C25] hidden sm:block tracking-tight">Agri-Connect</span>
                 </Link>
             </div>
 

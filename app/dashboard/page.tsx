@@ -2,143 +2,162 @@ import { prisma } from '@/lib/prisma';
 import { getUserSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import BidActionButtons from '@/app/dashboard/bidActionButtons'; // Import the client component!
 
-export default async function FarmerDashboard() {
-    // 1. Secure the page - ensure only logged-in users can see this
+// Helper to format dates cleanly
+function formatDate(date: Date) {
+    return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+export default async function DashboardPage() {
+    // 1. Secure the route
     const session = await getUserSession();
-    if (!session?.uid) {
-        redirect('/auth/login');
-    }
+    if (!session?.uid) redirect('/auth/login');
 
-    const farmerId = session.uid;
+    const user = await prisma.user.findUnique({ where: { uid: session.uid } });
+    if (!user) redirect('/auth/login');
 
-    // 2. Fetch all products belonging to this specific farmer
-    // We 'include' the auc_bid relation so we can count bids and find the highest offer
-    const myProducts = await prisma.productAuction.findMany({
-        where: { fid: farmerId },
-        include: { 
-            auc_bid: true 
-        },
-        orderBy: { CreatedAt: 'desc' }
-    });
+    // ============================================================================
+    // 👨‍🌾 FARMER VIEW: See Active Auctions & Incoming Bids
+    // ============================================================================
+    if (user.role === 'FARMER') {
+        const myAuctions = await prisma.productAuction.findMany({
+            where: { fid: user.uid },
+            include: {
+                auc_bid: {
+                    include: { user_cid: true }, 
+                    orderBy: { bidAmount: 'desc' } 
+                }
+            },
+            orderBy: { CreatedAt: 'desc' }
+        });
 
-    // 3. Calculate Dashboard Metrics
-    const totalAuctions = myProducts.length;
-    const activeAuctions = myProducts.filter(p => p.auctionStatus === 'OPEN').length;
-    const totalBidsReceived = myProducts.reduce((total, product) => total + product.auc_bid.length, 0);
-
-    return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-                
-                {/* Header Section */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+        return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[80vh]">
+                <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900">My Farm Dashboard</h1>
-                        <p className="mt-1 text-sm text-gray-500">Manage your auctions and track incoming bids.</p>
+                        <h1 className="text-3xl font-extrabold text-gray-900">Farmer Dashboard</h1>
+                        <p className="mt-1 text-sm text-gray-500">Manage your active listings and incoming bids.</p>
                     </div>
-                    <Link 
-                        href="/product/new" 
-                        className="inline-flex items-center justify-center rounded-lg bg-[#009C25] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-[#009C25] focus:ring-offset-2 transition-colors"
-                    >
-                        + Create New Auction
+                    <Link href="/productAuc" className="bg-[#009C25] hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition-colors">
+                        + New Auction
                     </Link>
                 </div>
 
-                {/* Top Metrics Cards */}
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
-                    <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm p-6">
-                        <dt className="truncate text-sm font-medium text-gray-500">Active Auctions</dt>
-                        <dd className="mt-2 text-4xl font-black text-gray-900">{activeAuctions}</dd>
+                {myAuctions.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200">
+                        <p className="text-gray-500">You haven't listed any products yet.</p>
                     </div>
-                    <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm p-6">
-                        <dt className="truncate text-sm font-medium text-gray-500">Total Auctions</dt>
-                        <dd className="mt-2 text-4xl font-black text-gray-900">{totalAuctions}</dd>
-                    </div>
-                    <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm p-6">
-                        <dt className="truncate text-sm font-medium text-gray-500">Total Bids Received</dt>
-                        <dd className="mt-2 text-4xl font-black text-[#009C25]">{totalBidsReceived}</dd>
-                    </div>
-                </div>
+                ) : (
+                    <div className="space-y-8">
+                        {myAuctions.map((auction) => (
+                            <div key={auction.ProdAucId} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className={`px-6 py-4 border-b flex justify-between items-center ${auction.auctionStatus === 'CLOSED' ? 'bg-gray-100 border-gray-200' : 'bg-green-50 border-green-100'}`}>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900">{auction.title}</h2>
+                                        <p className="text-sm text-gray-600">Starting Bid: ₹{auction.startingBid} | Ends: {formatDate(auction.endTime)}</p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${auction.auctionStatus === 'CLOSED' ? 'bg-gray-200 text-gray-700' : 'bg-green-200 text-green-800'}`}>
+                                        {auction.auctionStatus}
+                                    </span>
+                                </div>
 
-                {/* Products Table/List */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-5 border-b border-gray-200">
-                        <h3 className="text-lg font-bold text-gray-900">Your Listings</h3>
-                    </div>
-                    
-                    {myProducts.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <p className="text-gray-500 mb-4">You haven't posted any products yet.</p>
-                            <Link href="/product/new" className="text-[#009C25] font-semibold hover:underline">
-                                Start your first auction &rarr;
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Starting Bid</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Highest Bid</th>
-                                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {myProducts.map((product) => {
-                                        // Calculate the highest bid for this specific product
-                                        const highestBid = product.auc_bid.length > 0 
-                                            ? Math.max(...product.auc_bid.map(b => b.bidAmount)) 
-                                            : 0;
-
-                                        return (
-                                            <tr key={product.ProdAucId} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-10 w-10 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                                                            <img 
-                                                                src={product.imageUrl?.[0] || 'https://via.placeholder.com/40'} 
-                                                                alt={product.title} 
-                                                                className="h-full w-full object-cover"
-                                                            />
-                                                        </div>
-                                                        <div className="text-sm font-bold text-gray-900">{product.title}</div>
+                                <div className="px-6 py-4">
+                                    {auction.auc_bid.length === 0 ? (
+                                        <p className="text-sm text-gray-500 italic">No bids yet.</p>
+                                    ) : (
+                                        <ul className="divide-y divide-gray-100">
+                                            {auction.auc_bid.map((bid) => (
+                                                <li key={bid.bidId} className="py-4 flex justify-between items-center">
+                                                    <div>
+                                                        <p className="font-bold text-lg text-gray-900">₹{bid.bidAmount}</p>
+                                                        <p className="text-sm text-gray-500">Bid by: {bid.user_cid.uname} • {formatDate(bid.bidTime)}</p>
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                        product.auctionStatus === 'OPEN' ? 'bg-green-100 text-green-800' : 
-                                                        product.auctionStatus === 'CLOSED' ? 'bg-gray-100 text-gray-800' : 
-                                                        'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {product.auctionStatus}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    ₹{product.startingBid}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="text-sm font-bold text-gray-900">
-                                                        {highestBid > 0 ? `₹${highestBid}` : 'No bids yet'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <Link href={`/product?id=${product.ProdAucId}`} className="text-[#009C25] hover:text-green-900 mr-4">
-                                                        View
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                                    
+                                                    <div>
+                                                        {bid.status === 'PENDING' && auction.auctionStatus === 'OPEN' ? (
+                                                            /* Using our clean Client Component */
+                                                            <BidActionButtons bidId={bid.bidId} aucId={auction.ProdAucId} />
+                                                        ) : (
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                                                                bid.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' : 
+                                                                bid.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
+                                                                'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                                {bid.status}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ============================================================================
+    // 🛒 BUYER VIEW: See Order History & Bid Statuses
+    // ============================================================================
+    else {
+        const myBids = await prisma.bidId.findMany({
+            where: { cid: user.uid },
+            include: {
+                auc_bid: { include: { user_fid: true } } 
+            },
+            orderBy: { bidTime: 'desc' }
+        });
+
+        return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[80vh]">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-extrabold text-gray-900">My Bids & Orders</h1>
+                    <p className="mt-1 text-sm text-gray-500">Track the status of your offers.</p>
                 </div>
 
+                {myBids.length === 0 ? (
+                    <div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200">
+                        <p className="text-gray-500 mb-4">You haven't placed any bids yet.</p>
+                        <Link href="/" className="text-[#009C25] font-bold hover:underline">Browse Market</Link>
+                    </div>
+                ) : (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <ul className="divide-y divide-gray-200">
+                            {myBids.map((bid) => (
+                                <li key={bid.bidId} className="p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center hover:bg-gray-50 transition-colors">
+                                    <div className="mb-4 sm:mb-0">
+                                        <Link href={`/product?id=${bid.aucId}`} className="text-xl font-bold text-gray-900 hover:text-[#009C25] transition-colors">
+                                            {bid.auc_bid.title}
+                                        </Link>
+                                        <p className="text-sm text-gray-600 mt-1">Farmer: {bid.auc_bid.user_fid.uname}</p>
+                                        <p className="text-xs text-gray-400 mt-1">Placed on {formatDate(bid.bidTime)}</p>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right">
+                                            <p className="text-sm text-gray-500">Your Offer</p>
+                                            <p className="text-2xl font-black text-gray-900">₹{bid.bidAmount}</p>
+                                        </div>
+                                        
+                                        <div className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide border ${
+                                            bid.status === 'ACCEPTED' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                            bid.status === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-200' : 
+                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}>
+                                            {bid.status}
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </div>
-        </div>
-    );
+        );
+    }
 }
