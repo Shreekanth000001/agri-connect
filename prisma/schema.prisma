@@ -5,14 +5,14 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 //2R3Z om9n qQ1R I2jL 8erO uPuY
 //
-datasource db {
-  provider = "postgresql"
-  // The 'url' line is removed because it's now in prisma.config.ts
-}
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // 1. Define the Enum options
