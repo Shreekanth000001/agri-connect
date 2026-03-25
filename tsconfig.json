@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/generated/*": ["./src/generated/*"]
     }
   },
   "include": [
@@ -30,5 +31,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "ts-node": {
+  "compiler-host": true,
+  "esm": true,
+  "experimentalSpecifierResolution": "node"
+}
 }
