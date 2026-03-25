@@ -1,4 +1,11 @@
+"use client"
+import { usePathname } from "next/navigation";
 export default function Footer() {
+    const pathname = usePathname();
+
+    if (pathname === '/auth/login' || pathname === '/auth/signup') {
+        return null; 
+    }
     return (
         <footer className="bg-[#009C25]  bottom-0 ">
             <div className="mx-auto w-full max-w-7xl p-4 py-6 lg:py-8">

@@ -90,3 +90,18 @@ model BidId {
   user_fid     User           @relation("fidRelation", fields: [fid], references: [uid])
   auc_bid      ProductAuction @relation("bidRelation", fields: [aucId], references: [ProdAucId])
 }
+
+enum MessageStatus {
+  UNREAD
+  READ
+  RESOLVED
+}
+
+model ContactMessage {
+  msgId     Int           @id @default(autoincrement())
+  name      String
+  email     String
+  message   String
+  status    MessageStatus @default(UNREAD)
+  createdAt DateTime      @default(now())
+}

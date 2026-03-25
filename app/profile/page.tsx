@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getUserSession } from '@/lib/session';
+import { logout } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 
@@ -28,6 +29,11 @@ export default async function ProfilePage() {
         month: 'long', 
         year: 'numeric' 
     }).format(user.ujoinedAt);
+
+    async function handleLogout() {
+        "use server";
+        await logout();
+    }
 
     return (
         <div className="bg-gray-50 min-h-[85vh] py-12">
@@ -100,9 +106,11 @@ export default async function ProfilePage() {
 
                     {/* Action Buttons Footer */}
                     <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-between sm:px-8">
+                        <form action={handleLogout}>
                         <button className="text-sm font-bold text-red-600 hover:text-red-800 transition-colors">
                             Log Out
                         </button>
+                        </form>
                         <Link 
                             href="/profile/edit" 
                             className="inline-flex items-center justify-center rounded-lg bg-[#009C25] px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[#009C25] focus:ring-offset-2"

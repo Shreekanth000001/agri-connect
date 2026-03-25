@@ -15,13 +15,14 @@ export async function POST(req: Request) {
         })
 
         if (!user) {
-            console.log("no user found")
+            console.log("no user found");
+                return NextResponse.json({ error: "No user Found. Please Sign up" }, { status: 500 });
         }
         else {
             const isPasswordValid = await bcrypt.compare(password, user.password);
             if (isPasswordValid) {
-
-                await createSession(String(user));
+                console.log(user);
+                await createSession(String(user.uid));
                 return NextResponse.json("logged in", { status: 200 });
             }
             else {

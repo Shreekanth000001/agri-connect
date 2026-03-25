@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 export default function ContactPage() {
+    const [isLoading, setIsLoading] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -14,12 +15,30 @@ export default function ContactPage() {
         e.preventDefault();
         setIsPending(true);
 
-        // Simulate a network request to send the email/message
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            // Talk to our new backend route
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
 
-        alert("Thanks for reaching out! We'll get back to you soon.");
-        setFormData({ name: '', email: '', message: '' }); // Clear the form
-        setIsPending(false);
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.error || "Something went wrong.");
+            } else {
+                // Success!
+                alert("Thanks for reaching out! We'll get back to you soon.");
+                setFormData({ name: '', email: '', message: '' }); // Clear the form
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Network error. Please check your connection.");
+        } finally {
+            setIsLoading(false);
+            setIsPending(false);
+        }
     };
 
     return (

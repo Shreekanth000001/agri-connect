@@ -15,8 +15,13 @@ function DateEm(date: Date | undefined | null) {
 
 function getDistanceKm(loc1: string, loc2: string) {
   if (!loc1 || !loc2) return null;
-  const [lat1, lon1] = loc1.split(' ').map(Number);
-  const [lat2, lon2] = loc2.split(' ').map(Number);
+  
+  // 1. Bulletproof parsing: handles spaces, commas, or both
+  const [lat1, lon1] = loc1.replace(',', ' ').split(/\s+/).map(Number);
+  const [lat2, lon2] = loc2.replace(',', ' ').split(/\s+/).map(Number);
+
+  // 2. Safety check: If for some reason the DB string is totally broken, don't crash the page
+  if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return null;
 
   const R = 6371; // Radius of Earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -31,6 +36,7 @@ function getDistanceKm(loc1: string, loc2: string) {
 export default async function Home({ searchParams }: { searchParams: Promise<{ id: string | undefined }> }) {
   const param = await searchParams;
   const id = param.id;
+  let userExistingBid = null;
 
   const proddata = await prisma.productAuction.findUnique({ where: { ProdAucId: Number(id) } });
   if (!proddata) {
@@ -61,6 +67,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
       distance = getDistanceKm(fdata.uloc, buyerLoc);
     }
   }
+  userExistingBid = await prisma.bidId.findFirst({
+        where: { aucId: Number(id), cid: session?.uid }
+    });
 
   return (
     <div className="bg-white min-h-[80vh]">
@@ -110,6 +119,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
     farmerId={proddata.fid} 
     startingBid={proddata.startingBid} 
     buyerId={session?.uid || null} 
+    existingBidAmt={userExistingBid?.bidAmount} 
 />
     
     <p className="mt-2 text-xs text-gray-500">Enter an amount higher than the current bid.</p>

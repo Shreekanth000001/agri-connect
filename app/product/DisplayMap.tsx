@@ -1,4 +1,3 @@
-// components/DisplayMap.tsx
 "use client";
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -12,10 +11,33 @@ const customIcon = new L.Icon({
   iconAnchor: [12, 41],
 });
 
+// Helper function to safely parse messy coordinates
+function parseCoordinates(locString: string | null | undefined): [number, number] | null {
+  if (!locString) return null;
+  
+  // Replace commas with spaces, split by any amount of whitespace, and convert to numbers
+  const parsed = locString.replace(/,/g, ' ').split(/\s+/).map(Number);
+  
+  // Ensure both numbers are valid before returning
+  if (!isNaN(parsed[0]) && !isNaN(parsed[1])) {
+    return [parsed[0], parsed[1]];
+  }
+  return null;
+}
+
 export default function DisplayMap({ farmerLoc, buyerLoc }: { farmerLoc: string, buyerLoc?: string | null }) {
-  // Parse the "lat lng" strings back into arrays of numbers
-  const fCoords = farmerLoc.split(' ').map(Number) as [number, number];
-  const bCoords = buyerLoc ? (buyerLoc.split(' ').map(Number) as [number, number]) : null;
+  
+  // 1. Safely parse the Farmer's location
+  let fCoords = parseCoordinates(farmerLoc);
+  
+  // Fallback to Bengaluru if the farmer's coordinates are completely broken
+  if (!fCoords) {
+    console.warn("Invalid farmer coordinates found. Defaulting to Bengaluru.");
+    fCoords = [12.9716, 77.5946]; 
+  }
+
+  // 2. Safely parse the Buyer's location
+  const bCoords = parseCoordinates(buyerLoc);
 
   return (
     <div className="h-[300px] w-full rounded-md overflow-hidden border border-gray-300 z-0 relative">
@@ -35,13 +57,13 @@ export default function DisplayMap({ farmerLoc, buyerLoc }: { farmerLoc: string,
           <Popup>Farm Location</Popup>
         </Marker>
 
-        {/* If the buyer is logged in, show their pin and a connecting line */}
+        {/* If the buyer is logged in and has valid coordinates, show their pin and a connecting line */}
         {bCoords && (
           <>
             <Marker position={bCoords} icon={customIcon}>
                <Popup>Your Location</Popup>
             </Marker>
-            <Polyline positions={[fCoords, bCoords]} color="blue" dashArray="5, 10" />
+            <Polyline positions={[fCoords, bCoords]} color="#009C25" dashArray="5, 10" />
           </>
         )}
       </MapContainer>

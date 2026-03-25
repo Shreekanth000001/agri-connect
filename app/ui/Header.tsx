@@ -1,12 +1,20 @@
 'use client'
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 export default function Header() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false); // State for the dropdown menu
     const router = useRouter();
+
+    const pathname = usePathname();
+
+    // 2. If we are on login or signup, render absolutely nothing.
+    if (pathname === '/auth/login' || pathname === '/auth/signup') {
+        return null; 
+    }
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault(); 

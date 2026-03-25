@@ -87,5 +87,5 @@ export async function deleteSession() {
 
 export async function logout() {
   await deleteSession()
-  redirect('/login')
+  redirect('/')
 }

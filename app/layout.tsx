@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from 'next-intl';
 import "./globals.css";
-import {getUserSession} from '@/lib/session'
+import { getUserSession } from '@/lib/session'
 import { SessionProvider } from '@/lib/SessionProvider';
-import { headers } from "next/headers";
 import Header from "./ui/Header"
 import Footer from "./ui/Footer"
-import AgriConnLogo from '@/public/agri-conn-logo.png'
 
 export const metadata: Metadata = {
   title: "Agri Connect",
   description: "Platform for direct farmer and consumer relations",
-  icons:{
-    icon:'agri-conn-logo.png'
+  icons: {
+    icon: '/agri-conn-logo.png' // Make sure this starts with a slash!
   }
 };
 
@@ -21,32 +19,21 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headerList = await headers();
-  const pathname = headerList.get("x-current-path");
   const session = await getUserSession();
-  function renderpaths() {
-    if (pathname === '/auth/login' || pathname === '/auth/signup') {
-      return (<> {children} </>)
-    }
-    else {
-      return (<>
-      <Header />
-        <NextIntlClientProvider>
-          <SessionProvider session={session}>
-          {children}
-          </SessionProvider>
-        </NextIntlClientProvider>
-        <Footer />
-        </>);
-    }
-  }
+  
   return (
     <html lang="en">
-      <head>
-      </head>
-      <body
-        className="relative h-screen">
-        {renderpaths()}
+      <body className="relative h-screen flex flex-col">
+        <NextIntlClientProvider>
+          <SessionProvider session={session}>
+            {/* The Header and Footer will now manage their own visibility */}
+            <Header />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <Footer />
+          </SessionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
