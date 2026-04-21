@@ -19,7 +19,8 @@ Indian farmers lose 30-40% of their earnings to middlemen in traditional mandis.
 - 🧑‍🌾 **Farmer dashboard** — list produce with quantity, price, and harvest details
 - ⚖️ **Bidding system** — transparent auction mechanism for fair pricing
 - 🔐 **Authentication** — secure role-based access for farmers and buyers
-- 📍 **Geography API** — Locate the nearby products
+- 📍 **Interactive proximity map** — renders farmer and buyer locations on a Leaflet.js map 
+  with a straight-line displacement measurement, helping buyers gauge distance before bidding
 
 ---
 
