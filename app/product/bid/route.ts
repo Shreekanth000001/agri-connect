@@ -1,34 +1,51 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getUserSession } from '@/lib/session';
 
 export async function POST(req: Request) {
     try {
+        // 1. AUTH GUARD: Verify user session server-side
+        const session = await getUserSession();
+        if (!session?.uid) {
+            return NextResponse.json(
+                { success: false, message: "Unauthorized. Please log in to place a bid." },
+                { status: 401 }
+            );
+        }
+
         const body = await req.json();
         const { aucId, fid, cid, bidAmount } = body;
 
-        // 1. SECURITY CHECK: Did this user already bid on this specific auction?
+        // Ensure user is placing bid for themselves
+        if (Number(cid) !== session.uid) {
+            return NextResponse.json(
+                { success: false, message: "Forbidden. Session user mismatch." },
+                { status: 403 }
+            );
+        }
+
+        // 2. SECURITY CHECK: Did this user already bid on this specific auction?
         const existingBid = await prisma.bidId.findFirst({
             where: {
-                aucId: aucId,
-                cid: cid
+                aucId: Number(aucId),
+                cid: session.uid
             }
         });
 
         if (existingBid) {
-            // Block the request and tell the frontend why
             return NextResponse.json(
                 { success: false, message: "You have already placed a bid on this product." }, 
                 { status: 400 }
             );
         }
 
-        // 2. If no existing bid, create the new one
+        // 3. Create the new bid with validated session uid
         const newBid = await prisma.bidId.create({
             data: {
-                aucId: aucId,
-                fid: fid,
-                cid: cid,
-                bidAmount: bidAmount,
+                aucId: Number(aucId),
+                fid: Number(fid),
+                cid: session.uid,
+                bidAmount: Number(bidAmount),
                 status: 'PENDING'
             }
         });
