@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from 'react';
+import { NegotiationOffer } from '../types';
 
 interface ChatInputProps {
-  onSendMessage: (text: string, offer?: { pricePerKg: number; quantityKg: number; totalAmount: number }) => void;
+  onSendMessage: (text: string, offer?: NegotiationOffer) => void;
   startingBid?: number;
 }
 
@@ -29,6 +30,7 @@ export default function ChatInput({ onSendMessage, startingBid = 100 }: ChatInpu
       pricePerKg: Number(offerPrice),
       quantityKg: Number(offerQty),
       totalAmount: total,
+      status: 'PROPOSED',
     });
 
     setShowOfferModal(false);

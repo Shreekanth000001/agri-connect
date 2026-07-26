@@ -6,13 +6,19 @@ import { Conversation } from '../types';
 interface ConversationListProps {
   conversations: Conversation[];
   activeId: string | null;
+  isLoading?: boolean;
+  error?: string | null;
   onSelect: (id: string) => void;
+  onRetry?: () => void;
 }
 
 export default function ConversationList({
   conversations,
   activeId,
+  isLoading = false,
+  error = null,
   onSelect,
+  onRetry,
 }: ConversationListProps) {
   const [search, setSearch] = useState('');
 
@@ -60,7 +66,31 @@ export default function ConversationList({
 
       {/* Conversations Scroll Area */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="p-4 space-y-3 animate-pulse">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-3 p-2">
+                <div className="w-12 h-12 bg-gray-200 rounded-xl shrink-0"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+                  <div className="h-3 w-1/2 bg-gray-100 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="p-6 text-center text-sm space-y-3">
+            <p className="text-red-600 font-semibold">{error}</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg transition-colors"
+              >
+                Retry Loading
+              </button>
+            )}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">
             No negotiations found matching &quot;{search}&quot;
           </div>

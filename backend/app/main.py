@@ -2,7 +2,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 
-from app.api.v1 import auth, auctions, bids, users, contact, dashboard, upload
+from app.api.v1 import auth, auctions, bids, users, contact, dashboard, upload, chat, chat_ws
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -27,6 +27,8 @@ api_router.include_router(users.router)
 api_router.include_router(contact.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(upload.router)
+api_router.include_router(chat.router)
+api_router.include_router(chat_ws.router)
 
 app.include_router(api_router)
 

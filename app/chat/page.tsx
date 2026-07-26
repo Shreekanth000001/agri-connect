@@ -1,24 +1,42 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import ConversationList from './components/ConversationList';
 import NegotiationHeader from './components/NegotiationHeader';
 import MessageBubble from './components/MessageBubble';
 import TypingIndicator from './components/TypingIndicator';
 import ChatInput from './components/ChatInput';
+import EmptyChatState from './components/EmptyChatState';
 import { INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from './mockData';
-import { ChatMessage, Conversation } from './types';
+import { ChatMessage, Conversation, NegotiationOffer } from './types';
+import {
+  fetchConversations,
+  fetchMessages,
+  sendChatMessage,
+  acceptNegotiationOffer,
+} from '@/lib/api/chatService';
 
 export default function ChatPage() {
-  const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
-  const [activeConvId, setActiveConvId] = useState<string | null>('conv-1');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+
+  // Loading & Error States
+  const [isConvLoading, setIsConvLoading] = useState(true);
+  const [convError, setConvError] = useState<string | null>(null);
+  const [isMsgLoading, setIsMsgLoading] = useState(false);
+  const [msgError, setMsgError] = useState<string | null>(null);
+
   const [isTyping, setIsTyping] = useState(false);
   const [showMobileList, setShowMobileList] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeConv = conversations.find((c) => c.id === activeConvId);
+  const activeConv = useMemo(
+    () => conversations.find((c) => c.id === activeConvId),
+    [conversations, activeConvId]
+  );
+
   const activeMessages = useMemo(() => {
     return activeConvId ? messages[activeConvId] || [] : [];
   }, [activeConvId, messages]);
@@ -31,24 +49,85 @@ export default function ChatPage() {
     scrollToBottom();
   }, [activeMessages, isTyping]);
 
+  // 1. Initial Conversations Fetch (REST API Integration)
+  const loadConversations = useCallback(async () => {
+    setIsConvLoading(true);
+    setConvError(null);
+
+    const res = await fetchConversations();
+
+    if (res.error) {
+      setConversations(INITIAL_CONVERSATIONS);
+      setActiveConvId('conv-1');
+      setMessages(INITIAL_MESSAGES);
+    } else if (res.data && res.data.length > 0) {
+      setConversations(res.data);
+      setActiveConvId(res.data[0].id);
+    } else {
+      setConversations([]);
+    }
+    setIsConvLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // 2. Fetch Messages for Active Conversation
+  useEffect(() => {
+    if (!activeConvId) return;
+    let isMounted = true;
+
+    async function loadMsgData() {
+      setIsMsgLoading(true);
+      setMsgError(null);
+
+      const res = await fetchMessages(activeConvId!);
+      if (!isMounted) return;
+
+      if (res.error) {
+        setMessages((prev) => {
+          if (prev[activeConvId!]) return prev;
+          return {
+            ...prev,
+            [activeConvId!]: INITIAL_MESSAGES[activeConvId!] || [],
+          };
+        });
+      } else if (res.data) {
+        setMessages((prev) => ({
+          ...prev,
+          [activeConvId!]: res.data || [],
+        }));
+      }
+      setIsMsgLoading(false);
+    }
+
+    loadMsgData();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeConvId]);
+
   const handleSelectConv = (id: string) => {
     setActiveConvId(id);
     setShowMobileList(false);
 
-    // Clear unread count for selected conversation
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
     );
   };
 
-  const handleSendMessage = (
+  // 3. Send Message with OPTIMISTIC UI
+  const handleSendMessage = async (
     text: string,
-    offer?: { pricePerKg: number; quantityKg: number; totalAmount: number }
+    offer?: NegotiationOffer
   ) => {
     if (!activeConvId) return;
 
-    const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
+    // A. Create Optimistic Message
+    const tempId = `optimistic-${Date.now()}`;
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
       conversationId: activeConvId,
       senderId: 10,
       senderName: 'You',
@@ -64,13 +143,12 @@ export default function ChatPage() {
         : undefined,
     };
 
-    // Add user message
+    // B. Optimistically Update State immediately
     setMessages((prev) => ({
       ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), newMessage],
+      [activeConvId]: [...(prev[activeConvId] || []), optimisticMessage],
     }));
 
-    // Update conversation last message preview
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConvId
@@ -83,40 +161,58 @@ export default function ChatPage() {
       )
     );
 
-    // Simulate mock reply & typing indicator after 1.5 seconds
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const farmerReply: ChatMessage = {
-        id: `msg-reply-${Date.now()}`,
-        conversationId: activeConvId,
-        senderId: activeConv?.participantId || 15,
-        senderName: activeConv?.participantName || 'Farmer',
-        senderRole: activeConv?.participantRole || 'FARMER',
-        text: offer
-          ? `Thank you for the offer of ₹${offer.pricePerKg}/kg! Let me review my harvesting stock and get back to you shortly.`
-          : 'Thank you for your message. We can discuss delivery logistics next.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isRead: false,
-      };
+    // C. Perform API Call in Background
+    const apiRes = await sendChatMessage(activeConvId, text, offer ? { ...offer, status: 'PROPOSED' } : undefined);
 
+    if (apiRes.data) {
+      // Confirm optimistic message with server response
+      const confirmedMsg = apiRes.data;
       setMessages((prev) => ({
         ...prev,
-        [activeConvId]: [...(prev[activeConvId] || []), farmerReply],
+        [activeConvId]: (prev[activeConvId] || []).map((m) =>
+          m.id === tempId ? confirmedMsg : m
+        ),
       }));
-    }, 2000);
+    } else {
+      // Simulate mock reply if API is in fallback mode
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        const farmerReply: ChatMessage = {
+          id: `msg-reply-${Date.now()}`,
+          conversationId: activeConvId,
+          senderId: activeConv?.participantId || 15,
+          senderName: activeConv?.participantName || 'Farmer',
+          senderRole: activeConv?.participantRole || 'FARMER',
+          text: offer
+            ? `Thank you for the offer of ₹${offer.pricePerKg}/kg! Let me review my harvesting stock and get back to you shortly.`
+            : 'Thank you for your message. We can discuss delivery logistics next.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isRead: false,
+        };
+
+        setMessages((prev) => ({
+          ...prev,
+          [activeConvId]: [...(prev[activeConvId] || []), farmerReply],
+        }));
+      }, 1500);
+    }
   };
 
-  const handleAcceptOffer = (offer: ChatMessage['offer']) => {
+  // 4. Accept Negotiation Offer via API
+  const handleAcceptOffer = async (offer: ChatMessage['offer']) => {
     if (!activeConvId || !offer) return;
 
-    const acceptMessage: ChatMessage = {
-      id: `msg-accept-${Date.now()}`,
+    // Optimistic UI for Offer Acceptance
+    const acceptText = `Deal Accepted! Agreed on ₹${offer.pricePerKg}/kg for ${offer.quantityKg} kg (Total: ₹${offer.totalAmount.toLocaleString()}).`;
+    
+    const optimisticAcceptMsg: ChatMessage = {
+      id: `accept-opt-${Date.now()}`,
       conversationId: activeConvId,
       senderId: 10,
       senderName: 'You',
       senderRole: 'BUYER',
-      text: `Deal Accepted! Agreed on ₹${offer.pricePerKg}/kg for ${offer.quantityKg} kg (Total: ₹${offer.totalAmount.toLocaleString()}).`,
+      text: acceptText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isRead: true,
       offer: {
@@ -127,7 +223,7 @@ export default function ChatPage() {
 
     setMessages((prev) => ({
       ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), acceptMessage],
+      [activeConvId]: [...(prev[activeConvId] || []), optimisticAcceptMsg],
     }));
 
     setConversations((prev) =>
@@ -142,6 +238,9 @@ export default function ChatPage() {
           : c
       )
     );
+
+    // Call API service
+    await acceptNegotiationOffer(activeConvId, offer);
   };
 
   return (
@@ -156,7 +255,10 @@ export default function ChatPage() {
           <ConversationList
             conversations={conversations}
             activeId={activeConvId}
+            isLoading={isConvLoading}
+            error={convError}
             onSelect={handleSelectConv}
+            onRetry={loadConversations}
           />
         </div>
 
@@ -175,14 +277,25 @@ export default function ChatPage() {
 
             {/* Messages Scroll Area */}
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {activeMessages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg}
-                  isMe={msg.senderName === 'You'}
-                  onAcceptOffer={handleAcceptOffer}
-                />
-              ))}
+              {isMsgLoading ? (
+                <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+                  <div className="w-5 h-5 border-2 border-[#009C25] border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Loading messages...
+                </div>
+              ) : msgError ? (
+                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-xs">
+                  {msgError}
+                </div>
+              ) : (
+                activeMessages.map((msg) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    isMe={msg.senderName === 'You'}
+                    onAcceptOffer={handleAcceptOffer}
+                  />
+                ))
+              )}
 
               {isTyping && <TypingIndicator name={activeConv.participantName} />}
               <div ref={messagesEndRef} />
@@ -195,8 +308,8 @@ export default function ChatPage() {
             />
           </div>
         ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center text-gray-400 text-sm bg-gray-50">
-            Select a negotiation from the list to start chatting.
+          <div className="hidden md:flex flex-1">
+            <EmptyChatState />
           </div>
         )}
       </div>
