@@ -1,3 +1,4 @@
+from urllib.parse import parse_qs, urlencode
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from typing import List
@@ -16,8 +17,27 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="after")
     @classmethod
     def assemble_db_connection(cls, v: str | None) -> str:
-        if isinstance(v, str) and v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if isinstance(v, str):
+            if v.startswith("postgresql://"):
+                v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+            if "?" in v:
+                base_url, query_str = v.split("?", 1)
+                params = parse_qs(query_str)
+                
+                # Convert sslmode to ssl for asyncpg
+                if "sslmode" in params:
+                    sslmode = params.pop("sslmode")[0]
+                    if sslmode in ("require", "verify-ca", "verify-full", "prefer", "true"):
+                        params["ssl"] = ["require"]
+                
+                # Remove params unsupported by asyncpg
+                params.pop("channel_binding", None)
+                params.pop("connect_timeout", None)
+                
+                clean_query = urlencode(params, doseq=True)
+                return f"{base_url}?{clean_query}" if clean_query else base_url
+
         return v or ""
 
 settings = Settings()

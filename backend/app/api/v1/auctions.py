@@ -35,6 +35,33 @@ async def get_auctions(
         pages=(total + limit - 1) // limit if limit else 1
     )
 
+@router.get("/search", response_model=PaginatedAuctions)
+async def search_auctions(
+    db: SessionDep,
+    q: str = Query(..., min_length=1),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100)
+):
+    query = select(ProductAuction).where(
+        ProductAuction.title.ilike(f"%{q}%") | ProductAuction.description.ilike(f"%{q}%")
+    )
+    
+    total_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = total_result.scalar() or 0
+    
+    query = query.offset((page - 1) * limit).limit(limit)
+    result = await db.execute(query)
+    items = result.scalars().all()
+    
+    summaries = [AuctionSummary.model_validate(item) for item in items]
+        
+    return PaginatedAuctions(
+        items=summaries,
+        total=total,
+        page=page,
+        pages=(total + limit - 1) // limit if limit else 1
+    )
+
 @router.get("/{id}", response_model=Auction)
 async def get_auction(id: int, db: SessionDep):
     auction = await db.get(ProductAuction, id)

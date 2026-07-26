@@ -1,13 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getUserSession } from '@/lib/session';
-import { INITIAL_MESSAGES } from '@/app/chat/mockData';
-import { ChatMessage } from '@/app/chat/types';
 
-// In-memory store for dev/testing REST integration
-const messageStore: Record<string, ChatMessage[]> = { ...INITIAL_MESSAGES };
+const FASTAPI_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 export async function GET(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -20,20 +17,37 @@ export async function GET(
     }
 
     const { id } = await params;
-    const conversationMessages = messageStore[id] || [];
+    const cookieHeader = req.headers.get('cookie') || '';
 
-    return NextResponse.json(conversationMessages, { status: 200 });
-  } catch (error) {
-    console.error('Fetch Messages API Error:', error);
+    const res = await fetch(`${FASTAPI_URL}/chat/conversations/${id}/messages`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookieHeader,
+        'X-User-Id': String(session.uid),
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { message: `FastAPI backend GET ${FASTAPI_URL}/chat/conversations/${id}/messages returned ${res.status}` },
+        { status: res.status }
+      );
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data, { status: 200 });
+  } catch (error: unknown) {
+    console.error('Fetch Messages API Proxy Error:', error);
     return NextResponse.json(
-      { message: 'Internal Server Error fetching messages' },
-      { status: 500 }
+      { message: 'FastAPI Backend Connection Unavailable' },
+      { status: 503 }
     );
   }
 }
 
 export async function POST(
-  request: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -46,39 +60,33 @@ export async function POST(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { text, offer } = body;
+    const cookieHeader = req.headers.get('cookie') || '';
+    const body = await req.json();
 
-    if (!text && !offer) {
+    const res = await fetch(`${FASTAPI_URL}/chat/conversations/${id}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookieHeader,
+        'X-User-Id': String(session.uid),
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
       return NextResponse.json(
-        { message: 'Message text or offer proposal is required.' },
-        { status: 400 }
+        { message: `FastAPI backend POST ${FASTAPI_URL}/chat/conversations/${id}/messages returned ${res.status}` },
+        { status: res.status }
       );
     }
 
-    const newMessage: ChatMessage = {
-      id: `msg-api-${Date.now()}`,
-      conversationId: id,
-      senderId: session.uid,
-      senderName: session.uname || 'You',
-      senderRole: 'BUYER',
-      text: text || '',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: true,
-      offer: offer || undefined,
-    };
-
-    if (!messageStore[id]) {
-      messageStore[id] = [];
-    }
-    messageStore[id].push(newMessage);
-
-    return NextResponse.json(newMessage, { status: 201 });
-  } catch (error) {
-    console.error('Send Message API Error:', error);
+    const data = await res.json();
+    return NextResponse.json(data, { status: 201 });
+  } catch (error: unknown) {
+    console.error('Send Message API Proxy Error:', error);
     return NextResponse.json(
-      { message: 'Internal Server Error sending message' },
-      { status: 500 }
+      { message: 'FastAPI Backend Connection Unavailable' },
+      { status: 503 }
     );
   }
 }

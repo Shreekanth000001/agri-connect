@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import ConversationList from './components/ConversationList';
 import NegotiationHeader from './components/NegotiationHeader';
 import MessageBubble from './components/MessageBubble';
-import TypingIndicator from './components/TypingIndicator';
 import ChatInput from './components/ChatInput';
 import EmptyChatState from './components/EmptyChatState';
-import { INITIAL_CONVERSATIONS, INITIAL_MESSAGES } from './mockData';
 import { ChatMessage, Conversation, NegotiationOffer } from './types';
 import {
   fetchConversations,
@@ -27,7 +25,6 @@ export default function ChatPage() {
   const [isMsgLoading, setIsMsgLoading] = useState(false);
   const [msgError, setMsgError] = useState<string | null>(null);
 
-  const [isTyping, setIsTyping] = useState(false);
   const [showMobileList, setShowMobileList] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -47,19 +44,18 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [activeMessages, isTyping]);
+  }, [activeMessages]);
 
-  // 1. Initial Conversations Fetch (REST API Integration)
-  const loadConversations = useCallback(async () => {
+  // 1. Initial Conversations Fetch (Real FastAPI Backend Integration)
+  const handleRetryConversations = async () => {
     setIsConvLoading(true);
     setConvError(null);
 
     const res = await fetchConversations();
 
     if (res.error) {
-      setConversations(INITIAL_CONVERSATIONS);
-      setActiveConvId('conv-1');
-      setMessages(INITIAL_MESSAGES);
+      setConvError(res.error);
+      setConversations([]);
     } else if (res.data && res.data.length > 0) {
       setConversations(res.data);
       setActiveConvId(res.data[0].id);
@@ -67,11 +63,34 @@ export default function ChatPage() {
       setConversations([]);
     }
     setIsConvLoading(false);
-  }, []);
+  };
 
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    let isMounted = true;
+
+    async function loadData() {
+      setConvError(null);
+
+      const res = await fetchConversations();
+      if (!isMounted) return;
+
+      if (res.error) {
+        setConvError(res.error);
+        setConversations([]);
+      } else if (res.data && res.data.length > 0) {
+        setConversations(res.data);
+        setActiveConvId(res.data[0].id);
+      } else {
+        setConversations([]);
+      }
+      setIsConvLoading(false);
+    }
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // 2. Fetch Messages for Active Conversation
   useEffect(() => {
@@ -86,13 +105,7 @@ export default function ChatPage() {
       if (!isMounted) return;
 
       if (res.error) {
-        setMessages((prev) => {
-          if (prev[activeConvId!]) return prev;
-          return {
-            ...prev,
-            [activeConvId!]: INITIAL_MESSAGES[activeConvId!] || [],
-          };
-        });
+        setMsgError(res.error);
       } else if (res.data) {
         setMessages((prev) => ({
           ...prev,
@@ -117,7 +130,7 @@ export default function ChatPage() {
     );
   };
 
-  // 3. Send Message with OPTIMISTIC UI
+  // 3. Send Message via FastAPI Backend with OPTIMISTIC UI
   const handleSendMessage = async (
     text: string,
     offer?: NegotiationOffer
@@ -143,7 +156,7 @@ export default function ChatPage() {
         : undefined,
     };
 
-    // B. Optimistically Update State immediately
+    // B. Optimistically Update State
     setMessages((prev) => ({
       ...prev,
       [activeConvId]: [...(prev[activeConvId] || []), optimisticMessage],
@@ -161,11 +174,11 @@ export default function ChatPage() {
       )
     );
 
-    // C. Perform API Call in Background
+    // C. FastAPI API Call
     const apiRes = await sendChatMessage(activeConvId, text, offer ? { ...offer, status: 'PROPOSED' } : undefined);
 
     if (apiRes.data) {
-      // Confirm optimistic message with server response
+      // Replace optimistic message with confirmed server payload
       const confirmedMsg = apiRes.data;
       setMessages((prev) => ({
         ...prev,
@@ -173,37 +186,20 @@ export default function ChatPage() {
           m.id === tempId ? confirmedMsg : m
         ),
       }));
-    } else {
-      // Simulate mock reply if API is in fallback mode
-      setIsTyping(true);
-      setTimeout(() => {
-        setIsTyping(false);
-        const farmerReply: ChatMessage = {
-          id: `msg-reply-${Date.now()}`,
-          conversationId: activeConvId,
-          senderId: activeConv?.participantId || 15,
-          senderName: activeConv?.participantName || 'Farmer',
-          senderRole: activeConv?.participantRole || 'FARMER',
-          text: offer
-            ? `Thank you for the offer of ₹${offer.pricePerKg}/kg! Let me review my harvesting stock and get back to you shortly.`
-            : 'Thank you for your message. We can discuss delivery logistics next.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isRead: false,
-        };
-
-        setMessages((prev) => ({
-          ...prev,
-          [activeConvId]: [...(prev[activeConvId] || []), farmerReply],
-        }));
-      }, 1500);
+    } else if (apiRes.error) {
+      setMsgError(`Message failed: ${apiRes.error}`);
+      // Revert optimistic message on error
+      setMessages((prev) => ({
+        ...prev,
+        [activeConvId]: (prev[activeConvId] || []).filter((m) => m.id !== tempId),
+      }));
     }
   };
 
-  // 4. Accept Negotiation Offer via API
+  // 4. Accept Negotiation Offer via FastAPI API
   const handleAcceptOffer = async (offer: ChatMessage['offer']) => {
     if (!activeConvId || !offer) return;
 
-    // Optimistic UI for Offer Acceptance
     const acceptText = `Deal Accepted! Agreed on ₹${offer.pricePerKg}/kg for ${offer.quantityKg} kg (Total: ₹${offer.totalAmount.toLocaleString()}).`;
     
     const optimisticAcceptMsg: ChatMessage = {
@@ -239,8 +235,10 @@ export default function ChatPage() {
       )
     );
 
-    // Call API service
-    await acceptNegotiationOffer(activeConvId, offer);
+    const apiRes = await acceptNegotiationOffer(activeConvId, offer);
+    if (apiRes.error) {
+      setMsgError(`Offer acceptance failed: ${apiRes.error}`);
+    }
   };
 
   return (
@@ -258,7 +256,7 @@ export default function ChatPage() {
             isLoading={isConvLoading}
             error={convError}
             onSelect={handleSelectConv}
-            onRetry={loadConversations}
+            onRetry={handleRetryConversations}
           />
         </div>
 
@@ -280,11 +278,15 @@ export default function ChatPage() {
               {isMsgLoading ? (
                 <div className="flex items-center justify-center py-12 text-sm text-gray-400">
                   <div className="w-5 h-5 border-2 border-[#009C25] border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Loading messages...
+                  Fetching messages from backend...
                 </div>
               ) : msgError ? (
-                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-xs">
+                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-xs font-semibold">
                   {msgError}
+                </div>
+              ) : activeMessages.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">
+                  No messages yet. Send a message or propose a counter offer to start negotiating!
                 </div>
               ) : (
                 activeMessages.map((msg) => (
@@ -297,7 +299,6 @@ export default function ChatPage() {
                 ))
               )}
 
-              {isTyping && <TypingIndicator name={activeConv.participantName} />}
               <div ref={messagesEndRef} />
             </div>
 
@@ -309,7 +310,32 @@ export default function ChatPage() {
           </div>
         ) : (
           <div className="hidden md:flex flex-1">
-            <EmptyChatState />
+            <EmptyChatState
+              title={
+                convError
+                  ? convError.includes('401') || convError.toLowerCase().includes('unauthorized')
+                    ? 'Authentication Required'
+                    : 'Backend Service Notice'
+                  : 'No Active Negotiation Selected'
+              }
+              description={
+                convError
+                  ? convError.includes('401') || convError.toLowerCase().includes('unauthorized')
+                    ? 'You are currently not logged in. Please log in to your account to view your active negotiations.'
+                    : `Notice: ${convError}. (Ensure FastAPI server is running at ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'})`
+                  : 'Select a negotiation conversation from the sidebar to view messages, place price proposals, and communicate directly with farmers and buyers.'
+              }
+              buttonText={
+                convError && (convError.includes('401') || convError.toLowerCase().includes('unauthorized'))
+                  ? 'Log In Now'
+                  : 'Explore Produce Marketplace'
+              }
+              buttonLink={
+                convError && (convError.includes('401') || convError.toLowerCase().includes('unauthorized'))
+                  ? '/auth/login'
+                  : '/'
+              }
+            />
           </div>
         )}
       </div>

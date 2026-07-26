@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from typing import Any, Union
 from jose import jwt
@@ -7,7 +8,7 @@ from pydantic_settings import BaseSettings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class SecuritySettings(BaseSettings):
-    SECRET_KEY: str = "supersecretkey_please_change_in_production"
+    SECRET_KEY: str = os.getenv("SESSION_SECRET") or os.getenv("AUTH_SECRET") or "supersecretkey_please_change_in_production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
     

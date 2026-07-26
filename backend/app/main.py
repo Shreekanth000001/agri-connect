@@ -1,23 +1,42 @@
+import os
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 
 from app.api.v1 import auth, auctions, bids, users, contact, dashboard, upload, chat, chat_ws
+
+from contextlib import asynccontextmanager
+from app.db.base import Base
+from app.db.session import engine
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Auto-create missing database tables (Conversation, Message, etc.) on startup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="FastAPI backend for Agri Connect V2",
+    lifespan=lifespan,
 )
 
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Ensure uploads directory exists and mount static files
+UPLOAD_DIR = "/home/critic-coder/project/AI_Assisted_Projects/agri-connect-v2/backend/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+    allow_origin_regex=r"https?://.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
