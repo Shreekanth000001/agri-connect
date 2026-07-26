@@ -70,6 +70,9 @@ export default function Header() {
                                     <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
                                         Dashboard
                                     </Link>
+                                    <Link href="/chat" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
+                                        💬 Negotiations
+                                    </Link>
                                     <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-[#009C25] transition-colors">
                                         Profile
                                     </Link>
