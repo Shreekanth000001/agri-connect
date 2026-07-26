@@ -1,13 +1,13 @@
 import 'server-only';
 import { SignJWT, jwtVerify } from 'jose'
-import { prisma } from '@/lib//prisma';
+import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 const secretKey = process.env.SESSION_SECRET
 const encodedKey = new TextEncoder().encode(secretKey)
 
-export async function encrypt(payload: any) {
+export async function encrypt(payload: Record<string, unknown>) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -21,7 +21,7 @@ export async function decrypt(session: string | undefined = '') {
       algorithms: ['HS256'],
     })
     return payload
-  } catch (error) {
+  } catch {
     console.log('Failed to verify session')
     return null
   }

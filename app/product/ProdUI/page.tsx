@@ -2,13 +2,15 @@
 import { useState } from 'react';
 
 export default function ImageGallery({ images }: { images: string[] }) {
-    // 1. Safety check: If the farmer uploaded no images, show a placeholder
-    if (!images || images.length === 0) {
+    const hasImages = images && images.length > 0;
+    const [selectedImage, setSelectedImage] = useState<string | null>(hasImages ? images[0] : null);
+
+    if (!hasImages) {
         return <div className="aspect-square w-full rounded-lg bg-gray-200 flex items-center justify-center text-gray-500">No images available</div>;
     }
 
-    // 2. State to track which image is currently in the big viewer
-    const [mainImage, setMainImage] = useState(images[0]);
+    const mainImage = selectedImage || images[0];
+    const colCount = Math.min(images.length, 5);
 
     return (
         <div className="flex flex-col gap-4 justify-center items-center">
@@ -22,12 +24,15 @@ export default function ImageGallery({ images }: { images: string[] }) {
             </div>
 
             {/* The Row of Thumbnails */}
-            <div className={`grid grid-cols-3 gap-4 sm:grid-cols-${images.length <5 ? images.length : 5} `}>
+            <div 
+                className="grid grid-cols-3 gap-4"
+                style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+            >
                 {images.map((img, idx) => (
                     <button
                         key={idx}
-                        onClick={() => setMainImage(img)}
-                        className={`relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-md bg-white sm:w-57.5 sm:h-57.5 
+                        onClick={() => setSelectedImage(img)}
+                        className={`relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-md bg-white 
                         ${mainImage === img ? 'ring-2 ring-[#009C25] ring-offset-2' : 'ring-1 ring-gray-200'}`}
                     >
                         <img src={img} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover object-center" />

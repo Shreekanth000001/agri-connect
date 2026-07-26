@@ -1,17 +1,14 @@
 "use server"
-import { SignupFormSchema, FormState } from '@/lib/definitions'
 import { createSession } from '@/lib/session'
-import { cookies } from 'next/headers'
-import { decrypt } from '@/lib/session'
-import { prisma } from '@/lib//prisma';
+import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation'
-const bcrypt = require('bcrypt');
+import bcrypt from 'bcrypt';
 
 export async function signup(formData: FormData) {
   try {
     const name = String(formData.get('name'));
     const email = String(formData.get('email'));
-    const password = formData.get('password');
+    const password = String(formData.get('password') || '');
     const address = String(formData.get('address'));
     const state = String(formData.get('state'));
     const pincode = String(formData.get('pincode'));

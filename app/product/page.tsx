@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma';
-import Link from "next/link";
 import BidForm from '@/app/product/ProdUI/BidForm'
 import { getUserSession } from '@/lib/session'; 
 import MapWrapper from '@/app/product/MapWrapper';

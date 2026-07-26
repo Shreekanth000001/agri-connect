@@ -7,7 +7,7 @@ import { useUser } from '@/lib/SessionProvider';
 
 export default function AucForm() {
     const user = useUser();
-    console.log(user.uid);
+    console.log(user?.uid);
     const [imgs, setImgs] = useState<string[]>([]);
     const [imgLimit, setImgLimit] = useState(false);
     const handleImgs = (newUrl: string) => {
@@ -27,7 +27,7 @@ export default function AucForm() {
     return (
         <div className='px-6 md:px-[20%] mt-6 pb-10'>
             <form action={AucFormSubmit}>
-                <input type='hidden' name='uid' value={user.uid} />
+                <input type='hidden' name='uid' value={user?.uid || ''} />
                 <input type='hidden' name='imageUrl' value={JSON.stringify(imgs)} />
                 <div className="space-y-12">
                     <div className="border-b border-gray-900/10 pb-12">
