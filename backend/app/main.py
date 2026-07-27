@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 
-from app.api.v1 import auth, auctions, products, bids, users, contact, dashboard, upload, chat, chat_ws
+from app.api.v1 import auth, auctions, products, bids, users, contact, dashboard, upload, chat, chat_ws, ai
 
 from contextlib import asynccontextmanager
 from app.db.base import Base
@@ -61,6 +61,7 @@ api_router.include_router(dashboard.router)
 api_router.include_router(upload.router)
 api_router.include_router(chat.router)
 api_router.include_router(chat_ws.router)
+api_router.include_router(ai.router)
 
 app.include_router(api_router)
 

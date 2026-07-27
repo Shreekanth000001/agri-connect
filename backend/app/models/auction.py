@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -30,8 +30,12 @@ class ProductAuction(Base):
     startingBid: Mapped[float] = mapped_column(Float, nullable=False)
     startTime: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     endTime: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    auctionStatus: Mapped[AuctionStatus] = mapped_column(String, default=AuctionStatus.OPEN)
-    category: Mapped[Category] = mapped_column(String, default=Category.OTHER)
+    auctionStatus: Mapped[AuctionStatus] = mapped_column(
+        Enum(AuctionStatus, name="AuctionStatus"), default=AuctionStatus.OPEN
+    )
+    category: Mapped[Category] = mapped_column(
+        Enum(Category, name="Category"), default=Category.OTHER
+    )
     imageUrl: Mapped[list[str]] = mapped_column(ARRAY(String), default=[])
     CreatedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 

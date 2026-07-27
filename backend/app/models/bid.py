@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -22,7 +22,7 @@ class BidId(Base):
     bidAmount: Mapped[float] = mapped_column(Float, nullable=False)
     bidTime: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     deliveryDate: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    status: Mapped[Status] = mapped_column(default=Status.PENDING)
+    status: Mapped[Status] = mapped_column(Enum(Status, name="Status"), default=Status.PENDING)
     ujoinedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     # Relationships

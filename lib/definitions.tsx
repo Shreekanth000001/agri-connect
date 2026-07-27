@@ -32,5 +32,8 @@ export interface ProductAuctionItem {
   auctionStatus?: 'OPEN' | 'CLOSED' | 'CANCELLED';
   category?: string;
   imageUrl?: string[];
+  farmerName?: string;
+  farmerLocation?: string;
+  location?: string;
   CreatedAt?: string;
 }

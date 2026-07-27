@@ -33,11 +33,14 @@ class ProductResponse(ProductBase):
     CreatedAt: datetime
     created_at: datetime | None = None
     user_fid: User | None = None
+    user: User | None = None
 
     @model_validator(mode="after")
     def set_aliases(self) -> "ProductResponse":
         self.id = self.ProdAucId
         self.created_at = self.CreatedAt
+        if self.user_fid:
+            self.user = self.user_fid
         return self
 
     model_config = {"from_attributes": True}

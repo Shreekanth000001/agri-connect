@@ -51,17 +51,28 @@ export function normalizeProductItem(raw: Record<string, unknown>): ProductAucti
     return `${baseUrl}/uploads/${img}`;
   });
 
+  const rawUser = (raw.user_fid || raw.user || raw.farmer || {}) as Record<string, unknown>;
+  const farmerName = String(
+    raw.farmerName || raw.farmer_name || rawUser.uname || rawUser.name || rawUser.full_name || 'Agri Farmer'
+  );
+  const farmerLocation = String(
+    raw.location || raw.farmerLocation || raw.farmer_location || rawUser.ugeo || rawUser.location || rawUser.uloc || 'India'
+  );
+
   return {
     ProdAucId: Number(raw.ProdAucId || raw.id || raw.auction_id || 0),
     title: String(raw.title || raw.name || 'Agricultural Produce'),
     description: String(raw.description || ''),
     imageUrl,
-    fid: Number(raw.fid || raw.farmer_id || raw.farmerId || 0),
+    fid: Number(raw.fid || raw.farmer_id || raw.farmerId || rawUser.uid || rawUser.id || 0),
     category: String(raw.category || 'General'),
     startingBid: Number(raw.startingBid || raw.starting_bid || raw.price || 0),
     startTime: new Date((raw.startTime || raw.start_time || Date.now()) as string | number).toISOString(),
     endTime: new Date((raw.endTime || raw.end_time || Date.now()) as string | number).toISOString(),
     auctionStatus: (raw.auctionStatus || raw.status || 'OPEN') as ProductAuctionItem['auctionStatus'],
+    farmerName,
+    farmerLocation,
+    location: farmerLocation,
   };
 }
 

@@ -43,6 +43,8 @@ export function useChatWebSocket({
     setIsConnected(false);
   }, []);
 
+  const connectRef = useRef<() => void>(() => {});
+
   const connect = useCallback(() => {
     if (!conversationId || !accessToken) return;
 
@@ -94,7 +96,7 @@ export function useChatWebSocket({
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
         reconnectAttemptsRef.current += 1;
         console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-        reconnectTimeoutRef.current = setTimeout(connect, delay);
+        reconnectTimeoutRef.current = setTimeout(() => connectRef.current(), delay);
       }
     };
 
@@ -104,8 +106,17 @@ export function useChatWebSocket({
   }, [conversationId, accessToken, currentUserId, onNewMessage, cleanup]);
 
   useEffect(() => {
-    connect();
-    return cleanup;
+    connectRef.current = connect;
+  }, [connect]);
+
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      connect();
+    });
+    return () => {
+      cancelAnimationFrame(timer);
+      cleanup();
+    };
   }, [connect, cleanup]);
 
   const sendMessage = useCallback((content: string) => {

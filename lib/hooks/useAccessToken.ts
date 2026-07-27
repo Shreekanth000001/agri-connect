@@ -25,21 +25,17 @@ export function useAccessToken() {
   useEffect(() => {
     mounted.current = true;
 
-    if (cachedToken) {
-      setToken(cachedToken);
-      return;
-    }
+    if (!cachedToken) {
+      if (!fetchPromise) {
+        fetchPromise = fetchTokenFromServer().finally(() => {
+          fetchPromise = null;
+        });
+      }
 
-    // Deduplicate concurrent fetches
-    if (!fetchPromise) {
-      fetchPromise = fetchTokenFromServer().finally(() => {
-        fetchPromise = null;
+      fetchPromise.then((t) => {
+        if (mounted.current) setToken(t);
       });
     }
-
-    fetchPromise.then((t) => {
-      if (mounted.current) setToken(t);
-    });
 
     return () => {
       mounted.current = false;
