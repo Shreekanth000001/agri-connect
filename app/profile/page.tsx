@@ -2,6 +2,7 @@ import { getUserSession } from '@/lib/session';
 import { logout } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api/apiClient';
 
 export default async function ProfilePage() {
   const session = await getUserSession();
@@ -9,13 +10,25 @@ export default async function ProfilePage() {
     redirect('/auth/login');
   }
 
+  // Fetch actual user details from FastAPI backend
+  const apiRes = await apiClient.get<Record<string, unknown>>('/users/me', {
+    'X-User-Id': String(session.uid),
+  });
+  const dbUser = (apiRes.data?.user || apiRes.data) as Record<string, unknown> | undefined;
+
+  const actualName = String(dbUser?.name || dbUser?.uname || dbUser?.full_name || session.uname || 'Agri User');
+  const actualEmail = String(dbUser?.email || dbUser?.uemail || session.uemail || `user${session.uid}@agriconnect.com`);
+  const actualPhone = String(dbUser?.phone || dbUser?.uphone || dbUser?.uphno || 'Not set');
+  const actualLoc = String(dbUser?.location || dbUser?.uloc || session.uloc || 'India');
+  const actualRole = String(dbUser?.role || session.role || (actualName.toLowerCase().includes('farmer') ? 'FARMER' : 'BUYER'));
+
   const user = {
     uid: session.uid,
-    uname: session.uname || 'Agri User',
-    uemail: session.uemail || `user${session.uid}@agriconnect.com`,
-    uphno: (session as unknown as { uphno?: string })?.uphno || 'Not set',
-    uloc: session.uloc || 'India',
-    role: session.role || (session.uname.toLowerCase().includes('farmer') ? 'FARMER' : 'BUYER'),
+    uname: actualName,
+    uemail: actualEmail,
+    uphno: actualPhone,
+    uloc: actualLoc,
+    role: actualRole,
     ujoinedAt: new Date(),
   };
 

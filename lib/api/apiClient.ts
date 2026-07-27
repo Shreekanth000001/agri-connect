@@ -27,7 +27,7 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         ...options,
-        credentials: 'include', // Automatically passes Next.js session cookie to FastAPI backend
+        credentials: 'include', // Automatically passes Next.js session cookie to FastAPI backend on browser fetches
         headers,
       });
 

@@ -31,7 +31,8 @@ export async function createSession(
   username?: string,
   userLoc?: string,
   email?: string,
-  role?: string
+  role?: string,
+  accessToken?: string
 ) {
   const uid = Number(userId);
   const uemail = email || '';
@@ -41,7 +42,7 @@ export async function createSession(
 
   const userDetails = { uid, uname, uloc, uemail, role: urole };
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const session = await encrypt({ userDetails, expiresAt });
+  const session = await encrypt({ userDetails, accessToken: accessToken || '', expiresAt });
   const cookieStore = await cookies();
 
   cookieStore.set('session', session, {
@@ -62,6 +63,16 @@ export async function getUserSession() {
   const session = await decrypt(sessionCookie);
 
   return session?.userDetails as { uid: number; uname: string; uloc?: string; uemail?: string; role?: string } | null;
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  const cookiesStore = await cookies();
+  const sessionCookie = cookiesStore.get('session')?.value;
+
+  if (!sessionCookie) return null;
+
+  const session = await decrypt(sessionCookie);
+  return (session?.accessToken as string) || null;
 }
 
 export async function updateSession() {

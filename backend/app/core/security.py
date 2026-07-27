@@ -1,11 +1,9 @@
 import os
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Any, Union
 from jose import jwt
-from passlib.context import CryptContext
 from pydantic_settings import BaseSettings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class SecuritySettings(BaseSettings):
     SECRET_KEY: str = os.getenv("SESSION_SECRET") or os.getenv("AUTH_SECRET") or "supersecretkey_please_change_in_production"
@@ -30,7 +28,16 @@ def create_access_token(
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        password_bytes = plain_password.encode('utf-8')[:72]
+        hash_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hash_bytes)
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    password_bytes = (password or "").encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')

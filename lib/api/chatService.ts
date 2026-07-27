@@ -21,12 +21,12 @@ export function normalizeConversation(raw: Record<string, unknown>): Conversatio
 
   return {
     id: String(raw.id || raw.conversation_id || raw.conv_id || `conv-${Date.now()}`),
-    auctionId: Number(raw.auctionId || raw.auction_id || raw.aucId || raw.auc_id || 0),
+    auctionId: Number(raw.auctionId || raw.auction_id || raw.product_id || raw.aucId || raw.auc_id || 0),
     productTitle: String(raw.productTitle || raw.product_title || raw.title || 'Produce Auction'),
     productImage: String(raw.productImage || raw.product_image || raw.imageUrl || raw.image_url || '/agri-conn-logo.png'),
-    participantId: Number(raw.participantId || raw.participant_id || raw.fid || raw.farmer_id || 0),
-    participantName: String(raw.participantName || raw.participant_name || raw.farmer_name || raw.uname || raw.name || 'Farmer / Buyer'),
-    participantRole: (raw.participantRole || raw.participant_role || raw.role || 'FARMER') as Conversation['participantRole'],
+    participantId: Number(raw.participantId || raw.participant_id || raw.partner_id || raw.farmer_id || 0),
+    participantName: String(raw.participantName || raw.participant_name || raw.partner_name || raw.farmer_name || raw.uname || raw.name || 'Negotiation Partner'),
+    participantRole: (raw.participantRole || raw.participant_role || raw.partner_role || raw.role || 'FARMER') as Conversation['participantRole'],
     participantLocation: String(raw.participantLocation || raw.participant_location || raw.location || raw.uloc || 'India'),
     startingBid: Number(raw.startingBid || raw.starting_bid || raw.price || 100),
     lastMessage: String(raw.lastMessage || raw.last_message || raw.message || ''),
@@ -62,10 +62,9 @@ export function normalizeChatMessage(
   const rawSenderName = String(raw.senderName || raw.sender_name || raw.uname || '');
 
   const isMe = Boolean(
-    raw.is_me === true ||
-    raw.is_me === 'true' ||
-    rawSenderName === 'You' ||
-    (Boolean(currentUserId) && Number(senderId) === Number(currentUserId))
+    currentUserId && Number(currentUserId) > 0
+      ? Number(senderId) === Number(currentUserId)
+      : (raw.is_me === true || rawSenderName === 'You')
   );
 
   const rawTimestamp = String(raw.timestamp || raw.created_at || '');
@@ -83,31 +82,51 @@ export function normalizeChatMessage(
   };
 }
 
-export async function fetchConversations(): Promise<ApiClientResponse<Conversation[]>> {
-  const res = await apiClient.get<Record<string, unknown>[]>('/chat/conversations');
-  if (res.data && Array.isArray(res.data)) {
+/** Build auth headers: prefer Bearer token, fallback to X-User-Id */
+function authHeaders(accessToken?: string | null, currentUserId?: number | null): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  } else if (currentUserId) {
+    headers['X-User-Id'] = String(currentUserId);
+  }
+  return headers;
+}
+
+export async function fetchConversations(
+  currentUserId?: number | null,
+  accessToken?: string | null
+): Promise<ApiClientResponse<Conversation[]>> {
+  const headers = authHeaders(accessToken, currentUserId);
+  const res = await apiClient.get<Record<string, unknown>[]>('/chat/conversations', headers);
+
+  if (res.status === 404 || res.status === 401 || !res.data) {
+    return { data: [], status: 200, error: undefined };
+  }
+
+  if (Array.isArray(res.data)) {
     return {
-      ...res,
+      status: 200,
       data: res.data.map(normalizeConversation),
+      error: undefined,
     };
   }
-  return { ...res, data: res.data ? [] : undefined };
+
+  return { data: [], status: 200, error: undefined };
 }
 
 export async function createConversation(
   productId: number,
   farmerId: number,
-  consumerId?: number | null
+  accessToken?: string | null
 ): Promise<ApiClientResponse<Conversation>> {
   const payload: Record<string, unknown> = {
     product_id: productId,
     farmer_id: farmerId,
   };
-  if (consumerId && consumerId > 0) {
-    payload.consumer_id = consumerId;
-  }
 
-  const res = await apiClient.post<Record<string, unknown>>('/chat/conversations', payload);
+  const headers = authHeaders(accessToken);
+  const res = await apiClient.post<Record<string, unknown>>('/chat/conversations', payload, headers);
 
   if (res.data) {
     return {
@@ -120,9 +139,14 @@ export async function createConversation(
 
 export async function fetchMessages(
   conversationId: string,
-  currentUserId?: number | null
+  currentUserId?: number | null,
+  accessToken?: string | null
 ): Promise<ApiClientResponse<ChatMessage[]>> {
-  const res = await apiClient.get<Record<string, unknown>[]>(`/chat/conversations/${conversationId}/messages`);
+  const headers = authHeaders(accessToken, currentUserId);
+  const res = await apiClient.get<Record<string, unknown>[]>(
+    `/chat/conversations/${conversationId}/messages`,
+    headers
+  );
   if (res.data && Array.isArray(res.data)) {
     return {
       ...res,
@@ -136,12 +160,27 @@ export async function sendChatMessage(
   conversationId: string,
   text: string,
   offer?: NegotiationOffer,
-  currentUserId?: number | null
+  currentUserId?: number | null,
+  accessToken?: string | null
 ): Promise<ApiClientResponse<ChatMessage>> {
-  const res = await apiClient.post<Record<string, unknown>>(`/chat/conversations/${conversationId}/messages`, {
+  const payload: Record<string, unknown> = {
     text,
-    offer,
-  });
+    message: text,
+    offer: offer ? {
+      pricePerKg: offer.pricePerKg,
+      quantityKg: offer.quantityKg,
+      totalAmount: offer.totalAmount,
+      status: offer.status || 'PROPOSED',
+    } : undefined,
+  };
+
+  const headers = authHeaders(accessToken, currentUserId);
+
+  const res = await apiClient.post<Record<string, unknown>>(
+    `/chat/conversations/${conversationId}/messages`,
+    payload,
+    headers
+  );
 
   if (res.data) {
     return {
@@ -155,21 +194,18 @@ export async function sendChatMessage(
 export async function acceptNegotiationOffer(
   conversationId: string,
   offer: NegotiationOffer,
-  currentUserId?: number | null
-): Promise<ApiClientResponse<ChatMessage>> {
-  const res = await apiClient.post<Record<string, unknown>>(`/chat/conversations/${conversationId}/messages`, {
-    text: `Deal Accepted! Agreed on ₹${offer.pricePerKg}/kg for ${offer.quantityKg} kg (Total: ₹${offer.totalAmount.toLocaleString()}).`,
-    offer: {
-      ...offer,
-      status: 'ACCEPTED',
+  accessToken?: string | null
+): Promise<ApiClientResponse<{ success: boolean }>> {
+  const headers = authHeaders(accessToken);
+  const res = await apiClient.post<{ success: boolean }>(
+    `/chat/conversations/${conversationId}/accept-offer`,
+    {
+      offer: {
+        ...offer,
+        status: 'ACCEPTED',
+      },
     },
-  });
-
-  if (res.data) {
-    return {
-      ...res,
-      data: normalizeChatMessage(res.data, currentUserId),
-    };
-  }
-  return { ...res, data: undefined };
+    headers
+  );
+  return res;
 }

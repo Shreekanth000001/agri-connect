@@ -19,7 +19,21 @@ export async function POST(req: Request) {
       role: role || 'BUYER',
     });
 
-    const uid = Number(apiRes.data?.uid || apiRes.data?.id || Date.now());
+    if (apiRes.error || !apiRes.data) {
+      return NextResponse.json(
+        { error: apiRes.error || 'Signup failed' },
+        { status: apiRes.status || 500 }
+      );
+    }
+
+    const uid = Number(apiRes.data.uid || apiRes.data.id || apiRes.data.user_id || 0);
+    if (uid <= 0) {
+      return NextResponse.json(
+        { error: 'Signup succeeded but no user ID was returned' },
+        { status: 500 }
+      );
+    }
+
     await createSession(String(uid), uname, uloc, uemail, role || 'BUYER');
 
     return NextResponse.json({
@@ -34,8 +48,6 @@ export async function POST(req: Request) {
     }, { status: 201 });
   } catch (error) {
     console.error("Signup Error:", error);
-    const mockUid = Date.now();
-    await createSession(String(mockUid));
-    return NextResponse.json({ success: true, user: { uid: mockUid } }, { status: 201 });
+    return NextResponse.json({ error: "Signup failed" }, { status: 500 });
   }
 }

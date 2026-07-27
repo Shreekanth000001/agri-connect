@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from app.api.deps import SessionDep, CurrentUser
@@ -36,14 +36,42 @@ async def register(user_in: UserCreate, db: SessionDep):
     }
 
 @router.post("/login", response_model=Token)
-async def login(db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()):
-    result = await db.execute(select(User).where(User.uemail == form_data.username))
+async def login(request: Request, db: SessionDep):
+    username = None
+    password = None
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            username = body.get("username") or body.get("email")
+            password = body.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        try:
+            form = await request.form()
+            username = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username/Email and password required")
+
+    result = await db.execute(select(User).where(User.uemail == username))
     user = result.scalars().first()
-    if not user or not verify_password(form_data.password, user.password):
+    if not user or not verify_password(password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     access_token = create_access_token(subject=user.uid)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": user.uid,
+        "user": UserSchema.model_validate(user)
+    }
 
 @router.get("/me", response_model=UserSchema)
 async def read_users_me(current_user: CurrentUser):

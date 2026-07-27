@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/lib/SessionProvider';
+import { useAccessToken } from '@/lib/hooks/useAccessToken';
+import { useChatWebSocket } from '@/lib/hooks/useChatWebSocket';
 import ConversationList from './components/ConversationList';
 import NegotiationHeader from './components/NegotiationHeader';
 import MessageBubble from './components/MessageBubble';
@@ -21,6 +23,7 @@ function ChatContent() {
   const targetId = searchParams.get('id');
   const targetAuctionId = searchParams.get('auctionId');
   const user = useUser();
+  const { token: accessToken } = useAccessToken();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
@@ -53,12 +56,42 @@ function ChatContent() {
     scrollToBottom();
   }, [activeMessages]);
 
+  // WebSocket: Handle incoming real-time messages
+  const handleWsNewMessage = useCallback((msg: ChatMessage) => {
+    const convId = msg.conversationId || activeConvId;
+    if (!convId) return;
+
+    setMessages((prev) => {
+      const existing = prev[convId] || [];
+      // Deduplicate: don't add if message ID already exists
+      if (existing.some((m) => m.id === msg.id)) return prev;
+      return { ...prev, [convId]: [...existing, msg] };
+    });
+
+    // Update sidebar last message
+    setConversations((prev) =>
+      prev.map((c) =>
+        String(c.id) === String(convId)
+          ? { ...c, lastMessage: msg.text, lastMessageTime: msg.timestamp }
+          : c
+      )
+    );
+  }, [activeConvId]);
+
+  // Connect WebSocket to active conversation
+  const { isConnected } = useChatWebSocket({
+    conversationId: activeConvId,
+    accessToken,
+    currentUserId: user?.uid ?? null,
+    onNewMessage: handleWsNewMessage,
+  });
+
   // 1. Initial Conversations Fetch (Real FastAPI Backend Integration)
   const handleRetryConversations = async () => {
     setIsConvLoading(true);
     setConvError(null);
 
-    const res = await fetchConversations();
+    const res = await fetchConversations(user?.uid, accessToken);
 
     if (res.error) {
       setConvError(res.error);
@@ -83,7 +116,7 @@ function ChatContent() {
     async function loadData() {
       setConvError(null);
 
-      const res = await fetchConversations();
+      const res = await fetchConversations(user?.uid, accessToken);
       if (!isMounted) return;
 
       if (res.error) {
@@ -111,7 +144,7 @@ function ChatContent() {
     return () => {
       isMounted = false;
     };
-  }, [targetId, targetAuctionId, user?.uid]);
+  }, [targetId, targetAuctionId, user?.uid, accessToken]);
 
   // 2. Fetch Messages for Active Conversation
   useEffect(() => {
@@ -122,7 +155,7 @@ function ChatContent() {
       setIsMsgLoading(true);
       setMsgError(null);
 
-      const res = await fetchMessages(activeConvId!, user?.uid);
+      const res = await fetchMessages(activeConvId!, user?.uid, accessToken);
       if (!isMounted) return;
 
       if (res.error) {
@@ -145,7 +178,7 @@ function ChatContent() {
     return () => {
       isMounted = false;
     };
-  }, [activeConvId, user?.uid]);
+  }, [activeConvId, user?.uid, accessToken]);
 
   const handleSelectConv = (id: string) => {
     setActiveConvId(id);
@@ -197,7 +230,8 @@ function ChatContent() {
       activeConvId,
       text,
       offer ? { ...offer, status: 'PROPOSED' } : undefined,
-      user?.uid
+      user?.uid,
+      accessToken
     );
 
     if (apiRes.data) {
@@ -239,7 +273,7 @@ function ChatContent() {
     }));
 
     // B. Call FastAPI Endpoint
-    const apiRes = await acceptNegotiationOffer(activeConvId, offer);
+    const apiRes = await acceptNegotiationOffer(activeConvId, offer, accessToken);
 
     if (apiRes.error) {
       setMsgError(`Accept offer failed: ${apiRes.error}`);
@@ -269,11 +303,19 @@ function ChatContent() {
         {/* Right Pane: Active Conversation or Empty State */}
         {activeConv ? (
           <div className="flex-1 flex flex-col h-full min-w-0 bg-gray-50/50">
-            {/* Header */}
+            {/* Header with WebSocket Status */}
             <NegotiationHeader
               conversation={activeConv}
               onBackMobile={() => setShowMobileList(true)}
             />
+
+            {/* WebSocket Connection Status */}
+            {activeConvId && (
+              <div className={`px-4 py-1 text-xs flex items-center gap-1.5 border-b ${isConnected ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                <span className={`inline-block w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+                {isConnected ? 'Live — real-time updates active' : 'Connecting...'}
+              </div>
+            )}
 
             {/* Chat Error Banner */}
             {msgError && (
@@ -306,8 +348,9 @@ function ChatContent() {
                     key={msg.id}
                     message={msg}
                     isMe={
-                      msg.senderName === 'You' ||
-                      (Boolean(user?.uid) && Number(msg.senderId) === Number(user?.uid))
+                      Boolean(user?.uid) && Number(user?.uid) > 0
+                        ? Number(msg.senderId) === Number(user?.uid)
+                        : msg.senderName === 'You'
                     }
                     onAcceptOffer={handleAcceptOffer}
                   />

@@ -6,11 +6,18 @@ class ConnectionManager:
         # Maps conversation_id to a list of active WebSocket connections
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, conversation_id: int):
-        await websocket.accept()
+    def add_connection(self, websocket: WebSocket, conversation_id: int):
         if conversation_id not in self.active_connections:
             self.active_connections[conversation_id] = []
-        self.active_connections[conversation_id].append(websocket)
+        if websocket not in self.active_connections[conversation_id]:
+            self.active_connections[conversation_id].append(websocket)
+
+    async def connect(self, websocket: WebSocket, conversation_id: int):
+        try:
+            await websocket.accept()
+        except Exception:
+            pass
+        self.add_connection(websocket, conversation_id)
 
     def disconnect(self, websocket: WebSocket, conversation_id: int):
         if conversation_id in self.active_connections:

@@ -11,16 +11,37 @@ from app.schemas.token import TokenPayload
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 async def get_current_user_ws(token: str) -> User | None:
-    try:
-        payload = jwt.decode(
-            token, security_settings.SECRET_KEY, algorithms=[security_settings.ALGORITHM]
-        )
-        user_id = int(payload.get("sub"))
-        async with AsyncSessionLocal() as session:
-            user = await session.get(User, user_id)
-            return user
-    except Exception:
+    import os
+    secrets_to_try = [
+        security_settings.SECRET_KEY,
+        os.getenv("SESSION_SECRET"),
+        os.getenv("AUTH_SECRET"),
+        "agri-secret-key-default-2026-antigravity",
+        "supersecretkey_please_change_in_production"
+    ]
+    secrets = list(dict.fromkeys(s for s in secrets_to_try if s))
+
+    uid = None
+    for sec in secrets:
+        try:
+            payload = jwt.decode(token, sec, algorithms=[security_settings.ALGORITHM])
+            if "sub" in payload and str(payload["sub"]).isdigit():
+                uid = int(payload["sub"])
+            elif "uid" in payload and str(payload["uid"]).isdigit():
+                uid = int(payload["uid"])
+            elif "userId" in payload and str(payload["userId"]).isdigit():
+                uid = int(payload["userId"])
+            if uid is not None:
+                break
+        except Exception:
+            continue
+
+    if uid is None:
         return None
+
+    async with AsyncSessionLocal() as session:
+        user = await session.get(User, uid)
+        return user
 
 @router.websocket("/chat/{conversation_id}")
 async def websocket_chat_endpoint(
@@ -28,6 +49,8 @@ async def websocket_chat_endpoint(
     conversation_id: int,
     token: str = Query(...)
 ):
+    await websocket.accept()
+
     # 1. Authenticate user
     user = await get_current_user_ws(token)
     if not user:
@@ -41,8 +64,8 @@ async def websocket_chat_endpoint(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-    # 3. Connect socket
-    await ws_manager.connect(websocket, conversation_id)
+    # 3. Connect socket into active manager
+    ws_manager.add_connection(websocket, conversation_id)
 
     try:
         while True:

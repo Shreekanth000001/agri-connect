@@ -5,17 +5,26 @@ from app.models.user import User, Role
 from app.models.auction import ProductAuction
 from app.repositories.chat_repository import chat_repository
 from app.schemas.chat import ConversationCreate, ConversationResponse, MessageResponse, MessageCreate
+from app.core.ws_manager import ws_manager
 
 class ChatService:
     async def get_user_conversations(self, db: AsyncSession, user_id: int) -> list[ConversationResponse]:
         conversations = await chat_repository.get_user_conversations(db, user_id)
         responses = []
         for conv in conversations:
+            resp = ConversationResponse.model_validate(conv)
+            # Pick counterparty user relative to requesting user_id
+            other = conv.consumer if conv.farmer_id == user_id else conv.farmer
+            if other:
+                resp.participant_id = other.uid
+                resp.participant_name = other.uname
+                resp.participant_role = str(other.role.value if hasattr(other.role, 'value') else other.role)
+                resp.participant_location = other.uloc
+
             last_msg = conv.messages[-1] if conv.messages else None
             last_msg_resp = MessageResponse.model_validate(last_msg) if last_msg else None
             if last_msg_resp:
                 last_msg_resp.is_me = (last_msg.sender_id == user_id)
-            resp = ConversationResponse.model_validate(conv)
             resp.last_message = last_msg_resp
             responses.append(resp)
         return responses
@@ -24,11 +33,18 @@ class ChatService:
         conv = await chat_repository.get_conversation(db, conversation_id, user_id)
         if not conv:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found or access denied")
+        resp = ConversationResponse.model_validate(conv)
+        other = conv.consumer if conv.farmer_id == user_id else conv.farmer
+        if other:
+            resp.participant_id = other.uid
+            resp.participant_name = other.uname
+            resp.participant_role = str(other.role.value if hasattr(other.role, 'value') else other.role)
+            resp.participant_location = other.uloc
+
         last_msg = conv.messages[-1] if conv.messages else None
         last_msg_resp = MessageResponse.model_validate(last_msg) if last_msg else None
         if last_msg_resp:
             last_msg_resp.is_me = (last_msg.sender_id == user_id)
-        resp = ConversationResponse.model_validate(conv)
         resp.last_message = last_msg_resp
         return resp
 
@@ -126,6 +142,20 @@ class ChatService:
         )
         resp = MessageResponse.model_validate(msg)
         resp.is_me = True
+
+        # Broadcast real-time message to all active WebSocket listeners in this conversation
+        broadcast_data = MessageResponse.model_validate(msg).model_dump(mode="json")
+        broadcast_data["is_me"] = None  # Receivers will evaluate is_me dynamically based on their user ID
+
+        broadcast_event = {
+            "type": "new_message",
+            "data": broadcast_data
+        }
+        try:
+            await ws_manager.broadcast_to_conversation(conversation_id, broadcast_event)
+        except Exception:
+            pass
+
         return resp
 
 chat_service = ChatService()

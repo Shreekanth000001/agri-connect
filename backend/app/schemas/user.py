@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, model_validator
 from app.models.user import Role
 
 class UserBase(BaseModel):
@@ -21,8 +21,18 @@ class UserUpdate(BaseModel):
 
 class UserInDBBase(UserBase):
     uid: int
+    id: int | None = None
+    name: str | None = None
+    email: str | None = None
     ujoinedAt: datetime
     
+    @model_validator(mode="after")
+    def set_user_aliases(self) -> "UserInDBBase":
+        self.id = self.uid
+        self.name = self.uname
+        self.email = str(self.uemail)
+        return self
+
     model_config = {"from_attributes": True}
 
 class User(UserInDBBase):

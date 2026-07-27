@@ -20,8 +20,8 @@ class Conversation(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_id: Mapped[int | None] = mapped_column(ForeignKey("ProductAuction.ProdAucId", ondelete="SET NULL"), nullable=True)
-    farmer_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False)
-    consumer_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False)
+    farmer_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False, index=True)
+    consumer_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False, index=True)
     status: Mapped[ConversationStatus] = mapped_column(default=ConversationStatus.OPEN, nullable=False)
     accepted_bid_id: Mapped[int | None] = mapped_column(ForeignKey("BidId.bidId", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
@@ -54,8 +54,8 @@ class Message(Base):
     __tablename__ = "Message"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    conversation_id: Mapped[int] = mapped_column(ForeignKey("Conversation.id", ondelete="CASCADE"), nullable=False)
-    sender_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("Conversation.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     offer: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())

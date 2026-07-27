@@ -18,9 +18,16 @@ export default function ContactFarmerButton({
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
 
+  const isOwner = Boolean(buyerId && Number(buyerId) === Number(farmerId));
+
   const handleContactFarmer = async () => {
     if (!buyerId) {
       router.push('/auth/login');
+      return;
+    }
+
+    if (isOwner) {
+      alert("This is your own product listing!");
       return;
     }
 
@@ -44,6 +51,18 @@ export default function ContactFarmerButton({
       setIsPending(false);
     }
   };
+
+  if (isOwner) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="inline-flex items-center justify-center space-x-2 rounded-lg border border-gray-300 bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed shadow-2xs opacity-75"
+      >
+        <span>Your Listing</span>
+      </button>
+    );
+  }
 
   return (
     <button

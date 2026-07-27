@@ -88,16 +88,8 @@ class ConversationResponse(BaseModel):
     @model_validator(mode="after")
     def set_frontend_fields(self) -> "ConversationResponse":
         self.auction_id = self.product_id
-        if self.farmer:
-            self.participant_id = self.farmer.uid
-            self.participant_name = self.farmer.uname
-            self.participant_role = str(self.farmer.role.value if hasattr(self.farmer.role, 'value') else self.farmer.role)
-            self.participant_location = self.farmer.uloc
-        elif self.consumer:
-            self.participant_id = self.consumer.uid
-            self.participant_name = self.consumer.uname
-            self.participant_role = str(self.consumer.role.value if hasattr(self.consumer.role, 'value') else self.consumer.role)
-            self.participant_location = self.consumer.uloc
+        # participant_id, participant_name, participant_role, participant_location
+        # are set dynamically by ChatService based on the requesting user
         return self
 
     model_config = {"from_attributes": True}

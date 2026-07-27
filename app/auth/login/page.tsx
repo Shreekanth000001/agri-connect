@@ -1,12 +1,9 @@
 "use client"
 import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
-
 export default function LoginPage() {
     // 1. New states for handling errors and loading
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const router = useRouter();
 
     async function handleLogin(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -41,9 +38,8 @@ export default function LoginPage() {
                 // Fallback to a generic message if it doesn't
                 setError(data.message || data.error || "Invalid email or password.");
             } else {
-                // 3. Success! Redirect the user to the dashboard/home
-                router.push('/');
-                router.refresh(); 
+                // 3. Success! Force hard navigation to refresh all session cookies and state
+                window.location.href = '/';
             }
         } catch (err) {
             console.error("Login request failed:", err);
