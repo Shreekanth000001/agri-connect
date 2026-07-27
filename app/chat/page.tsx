@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useUser } from '@/lib/SessionProvider';
 import ConversationList from './components/ConversationList';
 import NegotiationHeader from './components/NegotiationHeader';
 import MessageBubble from './components/MessageBubble';
@@ -14,7 +16,12 @@ import {
   acceptNegotiationOffer,
 } from '@/lib/api/chatService';
 
-export default function ChatPage() {
+function ChatContent() {
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get('id');
+  const targetAuctionId = searchParams.get('auctionId');
+  const user = useUser();
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -30,7 +37,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeConv = useMemo(
-    () => conversations.find((c) => c.id === activeConvId),
+    () => conversations.find((c) => String(c.id) === String(activeConvId)),
     [conversations, activeConvId]
   );
 
@@ -56,11 +63,16 @@ export default function ChatPage() {
     if (res.error) {
       setConvError(res.error);
       setConversations([]);
+      setActiveConvId(null);
     } else if (res.data && res.data.length > 0) {
       setConversations(res.data);
-      setActiveConvId(res.data[0].id);
+      const match = res.data.find(
+        (c) => String(c.id) === String(targetId) || (targetAuctionId && String(c.auctionId) === String(targetAuctionId))
+      );
+      setActiveConvId(match ? String(match.id) : (targetId ? String(targetId) : String(res.data[0].id)));
     } else {
       setConversations([]);
+      setActiveConvId(null);
     }
     setIsConvLoading(false);
   };
@@ -77,11 +89,20 @@ export default function ChatPage() {
       if (res.error) {
         setConvError(res.error);
         setConversations([]);
+        setActiveConvId(null);
+        setMessages({});
       } else if (res.data && res.data.length > 0) {
         setConversations(res.data);
-        setActiveConvId(res.data[0].id);
+        const match = res.data.find(
+          (c) => String(c.id) === String(targetId) || (targetAuctionId && String(c.auctionId) === String(targetAuctionId))
+        );
+        setActiveConvId(match ? String(match.id) : (targetId ? String(targetId) : String(res.data[0].id)));
+      } else if (targetId) {
+        setActiveConvId(String(targetId));
       } else {
         setConversations([]);
+        setActiveConvId(null);
+        setMessages({});
       }
       setIsConvLoading(false);
     }
@@ -90,7 +111,7 @@ export default function ChatPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [targetId, targetAuctionId, user?.uid]);
 
   // 2. Fetch Messages for Active Conversation
   useEffect(() => {
@@ -101,11 +122,16 @@ export default function ChatPage() {
       setIsMsgLoading(true);
       setMsgError(null);
 
-      const res = await fetchMessages(activeConvId!);
+      const res = await fetchMessages(activeConvId!, user?.uid);
       if (!isMounted) return;
 
       if (res.error) {
-        setMsgError(res.error);
+        if (res.error.includes('404') || res.error.includes('Not Found') || res.error.includes('401')) {
+          setMsgError('Conversation thread is no longer available.');
+          setActiveConvId(null);
+        } else {
+          setMsgError(res.error);
+        }
       } else if (res.data) {
         setMessages((prev) => ({
           ...prev,
@@ -119,7 +145,7 @@ export default function ChatPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeConvId]);
+  }, [activeConvId, user?.uid]);
 
   const handleSelectConv = (id: string) => {
     setActiveConvId(id);
@@ -130,38 +156,30 @@ export default function ChatPage() {
     );
   };
 
-  // 3. Send Message via FastAPI Backend with OPTIMISTIC UI
-  const handleSendMessage = async (
-    text: string,
-    offer?: NegotiationOffer
-  ) => {
-    if (!activeConvId) return;
+  // 3. Send Message via FastAPI API
+  const handleSendMessage = async (text: string, offer?: NegotiationOffer) => {
+    if (!activeConvId || !text.trim()) return;
 
-    // A. Create Optimistic Message
-    const tempId = `optimistic-${Date.now()}`;
-    const optimisticMessage: ChatMessage = {
+    const tempId = `temp-${Date.now()}`;
+    const newMsg: ChatMessage = {
       id: tempId,
       conversationId: activeConvId,
-      senderId: 10,
+      senderId: user?.uid || 0,
       senderName: 'You',
       senderRole: 'BUYER',
       text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: 'Just now',
       isRead: true,
-      offer: offer
-        ? {
-            ...offer,
-            status: 'PROPOSED',
-          }
-        : undefined,
+      offer: offer ? { ...offer, status: 'PROPOSED' } : undefined,
     };
 
-    // B. Optimistically Update State
+    // A. Optimistic UI Update
     setMessages((prev) => ({
       ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), optimisticMessage],
+      [activeConvId]: [...(prev[activeConvId] || []), newMsg],
     }));
 
+    // B. Update Sidebar Last Message
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConvId
@@ -175,11 +193,18 @@ export default function ChatPage() {
     );
 
     // C. FastAPI API Call
-    const apiRes = await sendChatMessage(activeConvId, text, offer ? { ...offer, status: 'PROPOSED' } : undefined);
+    const apiRes = await sendChatMessage(
+      activeConvId,
+      text,
+      offer ? { ...offer, status: 'PROPOSED' } : undefined,
+      user?.uid
+    );
 
     if (apiRes.data) {
-      // Replace optimistic message with confirmed server payload
-      const confirmedMsg = apiRes.data;
+      const confirmedMsg = {
+        ...apiRes.data,
+        senderName: 'You',
+      };
       setMessages((prev) => ({
         ...prev,
         [activeConvId]: (prev[activeConvId] || []).map((m) =>
@@ -188,7 +213,6 @@ export default function ChatPage() {
       }));
     } else if (apiRes.error) {
       setMsgError(`Message failed: ${apiRes.error}`);
-      // Revert optimistic message on error
       setMessages((prev) => ({
         ...prev,
         [activeConvId]: (prev[activeConvId] || []).filter((m) => m.id !== tempId),
@@ -200,100 +224,91 @@ export default function ChatPage() {
   const handleAcceptOffer = async (offer: ChatMessage['offer']) => {
     if (!activeConvId || !offer) return;
 
-    const acceptText = `Deal Accepted! Agreed on ₹${offer.pricePerKg}/kg for ${offer.quantityKg} kg (Total: ₹${offer.totalAmount.toLocaleString()}).`;
-    
-    const optimisticAcceptMsg: ChatMessage = {
-      id: `accept-opt-${Date.now()}`,
-      conversationId: activeConvId,
-      senderId: 10,
-      senderName: 'You',
-      senderRole: 'BUYER',
-      text: acceptText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: true,
-      offer: {
-        ...offer,
-        status: 'ACCEPTED',
-      },
-    };
-
+    // A. Optimistic Update
     setMessages((prev) => ({
       ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), optimisticAcceptMsg],
+      [activeConvId]: (prev[activeConvId] || []).map((msg) => {
+        if (msg.offer) {
+          return {
+            ...msg,
+            offer: { ...msg.offer, status: 'ACCEPTED' },
+          };
+        }
+        return msg;
+      }),
     }));
 
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConvId
-          ? {
-              ...c,
-              status: 'AGREED',
-              lastMessage: 'Deal Agreed!',
-              lastMessageTime: 'Just now',
-            }
-          : c
-      )
-    );
-
+    // B. Call FastAPI Endpoint
     const apiRes = await acceptNegotiationOffer(activeConvId, offer);
+
     if (apiRes.error) {
-      setMsgError(`Offer acceptance failed: ${apiRes.error}`);
+      setMsgError(`Accept offer failed: ${apiRes.error}`);
     }
   };
 
   return (
-    <div className="grow min-h-[85vh] bg-gray-100 flex flex-col">
-      <div className="max-w-7xl w-full mx-auto my-0 md:my-6 flex-1 flex bg-white border border-gray-200 shadow-xl rounded-none md:rounded-2xl overflow-hidden min-h-[75vh]">
-        {/* Sidebar Conversation List */}
+    <div className="bg-gray-50 min-h-[85vh] p-2 sm:p-6 lg:p-8 flex justify-center items-center">
+      <div className="w-full max-w-7xl h-[80vh] bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row">
+        
+        {/* Left Sidebar: Conversation List */}
         <div
           className={`${
-            showMobileList || !activeConvId ? 'block' : 'hidden md:block'
-          } w-full md:w-auto shrink-0`}
+            showMobileList ? 'block' : 'hidden'
+          } md:block w-full md:w-80 lg:w-96 border-r border-gray-200 h-full shrink-0`}
         >
           <ConversationList
             conversations={conversations}
             activeId={activeConvId}
+            onSelect={handleSelectConv}
             isLoading={isConvLoading}
             error={convError}
-            onSelect={handleSelectConv}
             onRetry={handleRetryConversations}
           />
         </div>
 
-        {/* Main Chat Conversation View */}
+        {/* Right Pane: Active Conversation or Empty State */}
         {activeConv ? (
-          <div
-            className={`${
-              !showMobileList ? 'flex' : 'hidden md:flex'
-            } flex-col flex-1 bg-gray-50/60 min-w-0`}
-          >
-            {/* Active Header */}
+          <div className="flex-1 flex flex-col h-full min-w-0 bg-gray-50/50">
+            {/* Header */}
             <NegotiationHeader
               conversation={activeConv}
               onBackMobile={() => setShowMobileList(true)}
             />
 
+            {/* Chat Error Banner */}
+            {msgError && (
+              <div className="p-3 bg-red-50 text-red-700 text-xs border-b border-red-200 flex justify-between items-center">
+                <span>⚠️ {msgError}</span>
+                <button
+                  onClick={() => setMsgError(null)}
+                  className="font-bold text-red-800 hover:underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* Messages Scroll Area */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {isMsgLoading ? (
-                <div className="flex items-center justify-center py-12 text-sm text-gray-400">
-                  <div className="w-5 h-5 border-2 border-[#009C25] border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Fetching messages from backend...
-                </div>
-              ) : msgError ? (
-                <div className="p-4 bg-red-50 text-red-600 rounded-xl text-center text-xs font-semibold">
-                  {msgError}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {isMsgLoading && activeMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full space-y-3">
+                  <div className="w-8 h-8 border-3 border-[#009C25] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm font-medium text-gray-500">Loading negotiation history...</p>
                 </div>
               ) : activeMessages.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 text-sm">
-                  No messages yet. Send a message or propose a counter offer to start negotiating!
-                </div>
+                <EmptyChatState
+                  title="Start the Negotiation"
+                  description="Send a message or submit a counter offer to negotiate produce prices directly."
+                />
               ) : (
                 activeMessages.map((msg) => (
                   <MessageBubble
                     key={msg.id}
                     message={msg}
-                    isMe={msg.senderName === 'You'}
+                    isMe={
+                      msg.senderName === 'You' ||
+                      (Boolean(user?.uid) && Number(msg.senderId) === Number(user?.uid))
+                    }
                     onAcceptOffer={handleAcceptOffer}
                   />
                 ))
@@ -340,5 +355,13 @@ export default function ChatPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading chat...</div>}>
+      <ChatContent />
+    </Suspense>
   );
 }

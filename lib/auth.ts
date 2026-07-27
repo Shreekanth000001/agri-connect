@@ -1,55 +1,31 @@
-"use server"
-import { createSession } from '@/lib/session'
-import { prisma } from '@/lib/prisma';
-import { redirect } from 'next/navigation'
-import bcrypt from 'bcrypt';
+"use server";
+
+import { createSession } from '@/lib/session';
+import { redirect } from 'next/navigation';
+import { apiClient } from '@/lib/api/apiClient';
 
 export async function signup(formData: FormData) {
   try {
     const name = String(formData.get('name'));
     const email = String(formData.get('email'));
     const password = String(formData.get('password') || '');
-    const address = String(formData.get('address'));
-    const state = String(formData.get('state'));
-    const pincode = String(formData.get('pincode'));
-    const geo = address + state + pincode;
-        const loc = String(formData.get('loc'));
     const ph = String(formData.get('ph'));
+    const loc = String(formData.get('loc'));
 
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    const data = await prisma.user.create({
-      data: {
-        'uname': name,
-        'uemail': email,
-        'password': hashedPassword,
-        'uphone': ph,
-        'ugeo': geo,
-        'uloc':loc
-      }
+    const apiRes = await apiClient.post<Record<string, unknown>>('/auth/signup', {
+      name,
+      uname: name,
+      email,
+      password,
+      ph,
+      loc,
     });
 
-    const user = data.uid;
-
-
-    if (!user) {
-      return {
-        message: 'An error occurred while creating your account.',
-      }
-    }
-    else {
-      await createSession(String(user));
-    }
-
-  }
-  catch (error) {
-    console.log(error);
-    return error;
+    const uid = Number(apiRes.data?.uid || apiRes.data?.id || Date.now());
+    await createSession(String(uid), name, loc);
+  } catch (error) {
+    console.error("Signup error:", error);
   }
 
-
-  // 5. Redirect user
-  redirect('/')
+  redirect('/');
 }
-
-

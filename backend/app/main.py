@@ -4,17 +4,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 
-from app.api.v1 import auth, auctions, bids, users, contact, dashboard, upload, chat, chat_ws
+from app.api.v1 import auth, auctions, products, bids, users, contact, dashboard, upload, chat, chat_ws
 
 from contextlib import asynccontextmanager
 from app.db.base import Base
 from app.db.session import engine
 
+from sqlalchemy import text
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create missing database tables (Conversation, Message, etc.) on startup
+    # Auto-create missing database tables on startup (safely ignoring existing tables)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        try:
+            await conn.run_sync(Base.metadata.create_all)
+        except Exception:
+            pass
+        # Safely migrate existing Conversation table with new columns if created previously
+        await conn.execute(text('ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES "ProductAuction"("ProdAucId") ON DELETE SET NULL;'))
+        await conn.execute(text('ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS farmer_id INTEGER REFERENCES "User"("uid") ON DELETE CASCADE;'))
+        await conn.execute(text('ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS consumer_id INTEGER REFERENCES "User"("uid") ON DELETE CASCADE;'))
+        await conn.execute(text('ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT \'OPEN\';'))
+        await conn.execute(text('ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS accepted_bid_id INTEGER REFERENCES "BidId"("bidId") ON DELETE SET NULL;'))
+        await conn.execute(text('ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS offer JSONB;'))
     yield
 
 app = FastAPI(
@@ -40,6 +52,7 @@ app.add_middleware(
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
+api_router.include_router(products.router)
 api_router.include_router(auctions.router)
 api_router.include_router(bids.router)
 api_router.include_router(users.router)

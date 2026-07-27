@@ -1,24 +1,25 @@
-"use server"
-import { prisma } from '@/lib//prisma';
+import { NextResponse } from 'next/server';
+import { fetchProductById } from '@/lib/api/productService';
 
 export async function POST(req: Request) {
-  const { id } = await req.json();
-  console.log("id recieved: ", id);
+  try {
+    const { id } = await req.json();
 
-  const proddata = await prisma.productAuction.findUnique({ where: { ProdAucId: Number(id) } });
-  const fdata = await prisma.user.findUnique({ where: { uid: Number(proddata?.fid) } });
-  const combinedData = {
-    prodData: proddata,
-    fData: fdata
+    const apiRes = await fetchProductById(id);
+
+    if (apiRes.data) {
+      return NextResponse.json({
+        prodData: apiRes.data,
+        fData: {
+          uid: apiRes.data.fid,
+          uname: `Farmer #${apiRes.data.fid}`,
+        },
+      });
+    }
+
+    return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  } catch (error) {
+    console.error('Product Listings Route Error:', error);
+    return NextResponse.json({ message: 'Internal Error fetching product' }, { status: 500 });
   }
-  const returns = new Response(JSON.stringify(combinedData));
-  return returns;
 }
-
-export async function Get(id: Number) {
-  const proddata = await prisma.productAuction.findUnique({ where: { ProdAucId: Number(id) } });
-  console.log(JSON.stringify(proddata))
-
-  return new Response(Object(proddata));;
-}
-

@@ -32,17 +32,26 @@ class Auction(AuctionInDBBase):
     bid_count: int | None = None
     highest_bid: float | None = None
 
+from pydantic import BaseModel, Field, model_validator
+
 class AuctionSummary(BaseModel):
     ProdAucId: int
     title: str
     startingBid: float
     category: Category
     auctionStatus: AuctionStatus
+    imageUrl: list[str] = []
     thumbnail: str | None = None
     startTime: datetime
     endTime: datetime
     farmer: User | None = None
-    
+
+    @model_validator(mode="after")
+    def set_thumbnail(self) -> "AuctionSummary":
+        if self.imageUrl and len(self.imageUrl) > 0:
+            self.thumbnail = self.imageUrl[0]
+        return self
+
     model_config = {"from_attributes": True}
 
 class PaginatedAuctions(BaseModel):

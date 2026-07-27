@@ -24,7 +24,7 @@ export default function AboutPage() {
                             Our Mission
                         </h2>
                         <p className="mt-4 text-lg text-gray-500">
-                            For decades, the agricultural supply chain has been dominated by intermediaries who cut into farmers' profits and increase prices for buyers. We built Agri-Connect to change that.
+                            For decades, the agricultural supply chain has been dominated by intermediaries who cut into farmers&apos; profits and increase prices for buyers. We built Agri-Connect to change that.
                         </p>
                         <p className="mt-4 text-lg text-gray-500">
                             By leveraging an open auction system, we create a transparent, fair, and highly efficient marketplace. Whether you are a small-scale farmer looking for a wider audience, or a family looking for farm-fresh tomatoes, Agri-Connect is built for you.

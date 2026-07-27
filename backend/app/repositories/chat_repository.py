@@ -1,20 +1,29 @@
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.models.chat import Conversation, ConversationParticipant, Message
+from app.models.chat import Conversation, ConversationParticipant, Message, ConversationStatus
 
 class ChatRepository:
     async def get_user_conversations(self, db: AsyncSession, user_id: int) -> list[Conversation]:
-        # Subquery to get conversation IDs for the user
         stmt = (
             select(Conversation)
-            .join(ConversationParticipant)
-            .where(ConversationParticipant.user_id == user_id)
+            .outerjoin(ConversationParticipant, Conversation.id == ConversationParticipant.conversation_id)
+            .where(
+                or_(
+                    Conversation.farmer_id == user_id,
+                    Conversation.consumer_id == user_id,
+                    ConversationParticipant.user_id == user_id
+                )
+            )
             .options(
+                selectinload(Conversation.farmer),
+                selectinload(Conversation.consumer),
+                selectinload(Conversation.product),
                 selectinload(Conversation.participants).selectinload(ConversationParticipant.user),
                 selectinload(Conversation.messages)
             )
             .order_by(Conversation.updated_at.desc())
+            .distinct()
         )
         result = await db.execute(stmt)
         return list(result.scalars().all())
@@ -22,14 +31,48 @@ class ChatRepository:
     async def get_conversation(self, db: AsyncSession, conversation_id: int, user_id: int) -> Conversation | None:
         stmt = (
             select(Conversation)
-            .join(ConversationParticipant)
+            .outerjoin(ConversationParticipant, Conversation.id == ConversationParticipant.conversation_id)
             .where(
                 and_(
                     Conversation.id == conversation_id,
-                    ConversationParticipant.user_id == user_id
+                    or_(
+                        Conversation.farmer_id == user_id,
+                        Conversation.consumer_id == user_id,
+                        ConversationParticipant.user_id == user_id
+                    )
                 )
             )
             .options(
+                selectinload(Conversation.farmer),
+                selectinload(Conversation.consumer),
+                selectinload(Conversation.product),
+                selectinload(Conversation.participants).selectinload(ConversationParticipant.user),
+                selectinload(Conversation.messages)
+            )
+            .distinct()
+        )
+        result = await db.execute(stmt)
+        return result.scalars().first()
+
+    async def find_existing_conversation(
+        self, db: AsyncSession, farmer_id: int, consumer_id: int, product_id: int | None = None
+    ) -> Conversation | None:
+        conditions = [
+            Conversation.farmer_id == farmer_id,
+            Conversation.consumer_id == consumer_id
+        ]
+        if product_id is not None:
+            conditions.append(Conversation.product_id == product_id)
+        else:
+            conditions.append(Conversation.product_id.is_(None))
+
+        stmt = (
+            select(Conversation)
+            .where(and_(*conditions))
+            .options(
+                selectinload(Conversation.farmer),
+                selectinload(Conversation.consumer),
+                selectinload(Conversation.product),
                 selectinload(Conversation.participants).selectinload(ConversationParticipant.user),
                 selectinload(Conversation.messages)
             )
@@ -37,34 +80,25 @@ class ChatRepository:
         result = await db.execute(stmt)
         return result.scalars().first()
 
-    async def find_existing_conversation(self, db: AsyncSession, user_id_1: int, user_id_2: int) -> Conversation | None:
-        # Find conversation where both user_id_1 and user_id_2 are participants
-        p1 = select(ConversationParticipant.conversation_id).where(ConversationParticipant.user_id == user_id_1)
-        p2 = select(ConversationParticipant.conversation_id).where(ConversationParticipant.user_id == user_id_2)
-        
-        stmt = (
-            select(Conversation)
-            .where(Conversation.id.in_(p1) & Conversation.id.in_(p2))
-            .options(
-                selectinload(Conversation.participants).selectinload(ConversationParticipant.user)
-            )
+    async def create_conversation(
+        self, db: AsyncSession, farmer_id: int, consumer_id: int, product_id: int | None = None
+    ) -> Conversation:
+        conversation = Conversation(
+            product_id=product_id,
+            farmer_id=farmer_id,
+            consumer_id=consumer_id,
+            status=ConversationStatus.OPEN
         )
-        result = await db.execute(stmt)
-        return result.scalars().first()
-
-    async def create_conversation(self, db: AsyncSession, user_id_1: int, user_id_2: int) -> Conversation:
-        conversation = Conversation()
         db.add(conversation)
         await db.flush()
 
-        participant1 = ConversationParticipant(conversation_id=conversation.id, user_id=user_id_1)
-        participant2 = ConversationParticipant(conversation_id=conversation.id, user_id=user_id_2)
+        participant1 = ConversationParticipant(conversation_id=conversation.id, user_id=farmer_id)
+        participant2 = ConversationParticipant(conversation_id=conversation.id, user_id=consumer_id)
         db.add_all([participant1, participant2])
         await db.commit()
         await db.refresh(conversation)
 
-        # Reload relationships
-        return await self.get_conversation(db, conversation.id, user_id_1) # type: ignore
+        return await self.get_conversation(db, conversation.id, farmer_id) # type: ignore
 
     async def get_messages(self, db: AsyncSession, conversation_id: int, limit: int = 50, offset: int = 0) -> list[Message]:
         stmt = (
@@ -78,15 +112,17 @@ class ChatRepository:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
-    async def create_message(self, db: AsyncSession, conversation_id: int, sender_id: int, content: str) -> Message:
+    async def create_message(
+        self, db: AsyncSession, conversation_id: int, sender_id: int, content: str, offer: dict | None = None
+    ) -> Message:
         message = Message(
             conversation_id=conversation_id,
             sender_id=sender_id,
-            content=content
+            content=content,
+            offer=offer
         )
         db.add(message)
         
-        # Update conversation updated_at timestamp
         conversation = await db.get(Conversation, conversation_id)
         if conversation:
             db.add(conversation)
@@ -94,7 +130,6 @@ class ChatRepository:
         await db.commit()
         await db.refresh(message)
         
-        # Reload sender relationship
         stmt = select(Message).where(Message.id == message.id).options(selectinload(Message.sender))
         res = await db.execute(stmt)
         return res.scalars().first() # type: ignore

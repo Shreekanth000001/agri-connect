@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import ImgUpload from '@/app/productAuc/imgUpload/page'
 import AucFormSubmit from '@/app/productAuc/imgUpload/AucSubmit'
 import { PhotoIcon } from '@heroicons/react/24/solid'
@@ -9,20 +9,12 @@ export default function AucForm() {
     const user = useUser();
     console.log(user?.uid);
     const [imgs, setImgs] = useState<string[]>([]);
-    const [imgLimit, setImgLimit] = useState(false);
+    const imgLimit = imgs.length >= 5;
+
     const handleImgs = (newUrl: string) => {
-        setImgs((prev) => [...prev, newUrl])
-        console.log(newUrl)
-    }
-    useEffect(() => {
-        if (imgs.length >= 5) {
-            console.log(imgs.length)
-            setImgLimit(true)
-        }
-        else {
-            console.log("images length is : " + imgs.length + "and image limit status : " + imgLimit)
-        }
-    }, [imgs])
+        setImgs((prev) => [...prev, newUrl]);
+        console.log(newUrl);
+    };
 
     return (
         <div className='px-6 md:px-[20%] mt-6 pb-10'>

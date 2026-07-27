@@ -22,11 +22,12 @@ export default function ConversationList({
 }: ConversationListProps) {
   const [search, setSearch] = useState('');
 
-  const filtered = conversations.filter(
-    (c) =>
-      c.productTitle.toLowerCase().includes(search.toLowerCase()) ||
-      c.participantName.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = conversations.filter((c) => {
+    const title = (c?.productTitle || (c as unknown as Record<string, string>)?.title || '').toLowerCase();
+    const name = (c?.participantName || (c as unknown as Record<string, string>)?.name || '').toLowerCase();
+    const query = (search || '').toLowerCase();
+    return title.includes(query) || name.includes(query);
+  });
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200 w-full md:w-80 lg:w-96 shrink-0">

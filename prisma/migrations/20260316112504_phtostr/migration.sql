@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "User" ALTER COLUMN "uphone" SET DEFAULT '',
-ALTER COLUMN "uphone" SET DATA TYPE TEXT;

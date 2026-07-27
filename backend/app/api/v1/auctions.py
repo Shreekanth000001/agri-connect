@@ -7,17 +7,41 @@ from app.schemas.auction import AuctionCreate, Auction, PaginatedAuctions, Aucti
 
 router = APIRouter(prefix="/auctions", tags=["auctions"])
 
+from sqlalchemy import select, func, cast, String, or_
+
+from app.models.user import User
+
 @router.get("", response_model=PaginatedAuctions)
 async def get_auctions(
     db: SessionDep,
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     category: Optional[str] = None,
-    status: str = "OPEN"
+    status: str = "OPEN",
+    farmer_id: Optional[int] = None,
+    fid: Optional[int] = None,
+    search: Optional[str] = None,
+    q: Optional[str] = None
 ):
-    query = select(ProductAuction).where(ProductAuction.auctionStatus == status)
-    if category:
-        query = query.where(ProductAuction.category == category)
+    query = select(ProductAuction).outerjoin(User, ProductAuction.fid == User.uid)
+    farmer_target = farmer_id if farmer_id is not None else fid
+    if farmer_target is not None:
+        query = query.where(ProductAuction.fid == farmer_target)
+    if status and status.upper() != "ALL":
+        query = query.where(cast(ProductAuction.auctionStatus, String) == status)
+    if category and category.upper() != "ALL":
+        query = query.where(func.upper(cast(ProductAuction.category, String)) == category.upper())
+    
+    search_term = search or q
+    if search_term:
+        search_pattern = f"%{search_term}%"
+        query = query.where(
+            or_(
+                ProductAuction.title.ilike(search_pattern),
+                ProductAuction.description.ilike(search_pattern),
+                User.uname.ilike(search_pattern)
+            )
+        )
         
     total_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = total_result.scalar() or 0
@@ -42,8 +66,13 @@ async def search_auctions(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100)
 ):
-    query = select(ProductAuction).where(
-        ProductAuction.title.ilike(f"%{q}%") | ProductAuction.description.ilike(f"%{q}%")
+    search_pattern = f"%{q}%"
+    query = select(ProductAuction).outerjoin(User, ProductAuction.fid == User.uid).where(
+        or_(
+            ProductAuction.title.ilike(search_pattern),
+            ProductAuction.description.ilike(search_pattern),
+            User.uname.ilike(search_pattern)
+        )
     )
     
     total_result = await db.execute(select(func.count()).select_from(query.subquery()))

@@ -40,6 +40,10 @@ async def create_bid(
     await db.refresh(db_bid)
     return db_bid
 
+from app.models.chat import Conversation, ConversationStatus
+from app.repositories.chat_repository import chat_repository
+from app.schemas.chat import ConversationResponse
+
 @router.patch("/bids/{id}/accept", response_model=dict)
 async def accept_bid(
     id: int,
@@ -55,17 +59,41 @@ async def accept_bid(
     bid.status = Status.ACCEPTED
     
     auction = await db.get(ProductAuction, bid.aucId)
-    auction.auctionStatus = AuctionStatus.CLOSED
+    if auction:
+        auction.auctionStatus = AuctionStatus.CLOSED
     
+    # Reject other pending bids for this auction
     await db.execute(
         update(BidId)
         .where(BidId.aucId == bid.aucId, BidId.bidId != id, BidId.status == Status.PENDING)
         .values(status=Status.REJECTED)
     )
     
+    # Link to existing conversation (or create one if it doesn't exist yet)
+    conversation = await chat_repository.find_existing_conversation(
+        db, farmer_id=bid.fid, consumer_id=bid.cid, product_id=bid.aucId
+    )
+    if not conversation:
+        conversation = await chat_repository.create_conversation(
+            db, farmer_id=bid.fid, consumer_id=bid.cid, product_id=bid.aucId
+        )
+
+    conversation.accepted_bid_id = bid.bidId
+    conversation.status = ConversationStatus.NEGOTIATING
+    db.add(conversation)
+
     await db.commit()
     await db.refresh(bid)
-    return {"bid": bid, "auction_status": auction.auctionStatus}
+    
+    # Reload conversation details
+    updated_conversation = await chat_repository.get_conversation(db, conversation.id, current_farmer.uid)
+    conv_response = ConversationResponse.model_validate(updated_conversation)
+
+    return {
+        "bid": bid,
+        "auction_status": auction.auctionStatus if auction else "CLOSED",
+        "conversation": conv_response
+    }
 
 @router.patch("/bids/{id}/reject", response_model=Bid)
 async def reject_bid(
@@ -83,3 +111,14 @@ async def reject_bid(
     await db.commit()
     await db.refresh(bid)
     return bid
+
+@router.get("/bids/my-bids", response_model=list[Bid])
+async def get_my_bids(
+    db: SessionDep,
+    current_user: CurrentUser
+):
+    stmt = select(BidId).where(
+        (BidId.cid == current_user.uid) | (BidId.fid == current_user.uid)
+    ).order_by(BidId.bidTime.desc())
+    res = await db.execute(stmt)
+    return list(res.scalars().all())

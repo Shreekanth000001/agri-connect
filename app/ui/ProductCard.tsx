@@ -24,7 +24,22 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const thumbnail = product.imageUrl?.[0] || '/agri-conn-logo.png';
+  const rawThumbnail = product.imageUrl?.[0] || '/agri-conn-logo.png';
+  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace(/\/api\/v1\/?$/, '');
+
+  let thumbnail = rawThumbnail;
+  if (rawThumbnail && !rawThumbnail.startsWith('http://') && !rawThumbnail.startsWith('https://')) {
+    if (rawThumbnail === '/agri-conn-logo.png' || rawThumbnail === 'agri-conn-logo.png') {
+      thumbnail = '/agri-conn-logo.png';
+    } else if (rawThumbnail.startsWith('/uploads/') || rawThumbnail.startsWith('uploads/')) {
+      const cleanPath = rawThumbnail.startsWith('/') ? rawThumbnail : `/${rawThumbnail}`;
+      thumbnail = `${apiBaseUrl}${cleanPath}`;
+    } else if (rawThumbnail.startsWith('/')) {
+      thumbnail = `${apiBaseUrl}${rawThumbnail}`;
+    } else {
+      thumbnail = `${apiBaseUrl}/uploads/${rawThumbnail}`;
+    }
+  }
 
   return (
     <div 

@@ -14,6 +14,7 @@ class UserCreate(UserBase):
     password: str
 
 class UserUpdate(BaseModel):
+    uname: str | None = None
     uphone: str | None = None
     ugeo: str | None = None
     uloc: str | None = None

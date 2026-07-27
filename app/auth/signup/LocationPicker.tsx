@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -13,7 +13,7 @@ const customIcon = new L.Icon({
 });
 
 // This component handles BOTH clicking the map AND the auto-locate feature
-function LocationMarker({ position, setPosition }: { position: any, setPosition: any }) {
+function LocationMarker({ position, setPosition }: { position: L.LatLng | null, setPosition: (pos: L.LatLng) => void }) {
   // useMapEvents gives us the map instance so we can move the camera programmatically
   const map = useMapEvents({
     click(e) {

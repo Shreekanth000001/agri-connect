@@ -1,9 +1,7 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 
 export default function ContactPage() {
-    const [isLoading, setIsLoading] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -36,7 +34,6 @@ export default function ContactPage() {
             console.error(error);
             alert("Network error. Please check your connection.");
         } finally {
-            setIsLoading(false);
             setIsPending(false);
         }
     };
@@ -51,7 +48,7 @@ export default function ContactPage() {
                         Get in Touch
                     </h1>
                     <p className="mt-4 text-lg text-gray-500">
-                        Have a question about the platform? Need help with an auction? We'd love to hear from you.
+                        Have a question about the platform? Need help with an auction? We&apos;d love to hear from you.
                     </p>
                 </div>
 

@@ -26,9 +26,10 @@ async def create_conversation(
     db: SessionDep,
     current_user: CurrentUser
 ):
-    return await chat_service.create_or_get_conversation(db, current_user.uid, conv_in.participant_user_id)
+    return await chat_service.create_or_get_conversation(db, current_user, conv_in)
 
 @router.get("/messages/{conversation_id}", response_model=list[MessageResponse])
+@router.get("/conversations/{conversation_id}/messages", response_model=list[MessageResponse])
 async def get_messages(
     conversation_id: int,
     db: SessionDep,
@@ -39,6 +40,7 @@ async def get_messages(
     return await chat_service.get_messages(db, conversation_id, current_user.uid, limit=limit, offset=offset)
 
 @router.post("/messages/{conversation_id}", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/conversations/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_message(
     conversation_id: int,
     msg_in: MessageCreate,

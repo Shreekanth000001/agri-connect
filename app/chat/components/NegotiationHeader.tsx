@@ -12,6 +12,8 @@ export default function NegotiationHeader({
   conversation,
   onBackMobile,
 }: NegotiationHeaderProps) {
+  const hasAuctionId = Boolean(conversation.auctionId && conversation.auctionId > 0);
+
   return (
     <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-xs z-10">
       <div className="flex items-center space-x-3 min-w-0">
@@ -51,16 +53,29 @@ export default function NegotiationHeader({
         </div>
       </div>
 
-      {/* Action Link to Product Auction Detail */}
-      <Link
-        href={`/product?id=${conversation.auctionId}`}
-        className="hidden sm:flex items-center space-x-1 text-xs font-bold text-[#009C25] bg-green-50 hover:bg-green-100 px-3 py-2 rounded-xl border border-green-200 transition-colors shrink-0"
-      >
-        <span>View Auction</span>
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </Link>
+      {/* Action Links */}
+      <div className="flex items-center space-x-2 shrink-0">
+        {/* All Farmer Auctions */}
+        <Link
+          href={`/search?q=${encodeURIComponent(conversation.participantName)}`}
+          className="hidden sm:flex items-center space-x-1 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-xl border border-gray-200 transition-colors"
+        >
+          <span>Farmer Listings</span>
+        </Link>
+
+        {/* Specific Auction Detail Link */}
+        {hasAuctionId && (
+          <Link
+            href={`/product?id=${conversation.auctionId}`}
+            className="hidden sm:flex items-center space-x-1 text-xs font-bold text-[#009C25] bg-green-50 hover:bg-green-100 px-3 py-2 rounded-xl border border-green-200 transition-colors"
+          >
+            <span>View Auction</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

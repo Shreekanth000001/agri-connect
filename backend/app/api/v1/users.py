@@ -10,6 +10,8 @@ async def get_users_me(current_user: CurrentUser):
 
 @router.put("/me", response_model=User)
 async def update_user_me(user_update: UserUpdate, current_user: CurrentUser, db: SessionDep):
+    if user_update.uname is not None:
+        current_user.uname = user_update.uname
     if user_update.uphone is not None:
         current_user.uphone = user_update.uphone
     if user_update.ugeo is not None:

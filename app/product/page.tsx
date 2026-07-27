@@ -1,28 +1,38 @@
-import { prisma } from '@/lib/prisma';
-import BidForm from '@/app/product/ProdUI/BidForm'
+import BidForm from '@/app/product/ProdUI/BidForm';
+import ContactFarmerButton from '@/app/product/ProdUI/ContactFarmerButton';
 import { getUserSession } from '@/lib/session'; 
 import MapWrapper from '@/app/product/MapWrapper';
 import ImageGallery from '@/app/product/ProdUI/page';
+import { fetchProductById } from '@/lib/api/productService';
 
 // 1. Helpers moved OUTSIDE the component for better performance
-function DateEm(date: Date | undefined | null) {
+function DateEm(date: Date | string | undefined | null) {
   if (!date) return "N/A";
+  const parsedDate = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(parsedDate.getTime())) return "N/A";
   return new Intl.DateTimeFormat('en-IN', { 
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
-  }).format(date);
+  }).format(parsedDate);
 }
 
 function getDistanceKm(loc1: string, loc2: string) {
   if (!loc1 || !loc2) return null;
   
   // 1. Bulletproof parsing: handles spaces, commas, or both
-  const [lat1, lon1] = loc1.replace(',', ' ').split(/\s+/).map(Number);
-  const [lat2, lon2] = loc2.replace(',', ' ').split(/\s+/).map(Number);
-
-  // 2. Safety check: If for some reason the DB string is totally broken, don't crash the page
-  if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return null;
-
-  const R = 6371; // Radius of Earth in km
+  const [lat1Str, lon1Str] = loc1.split(/[,\s]+/).map(s => s.trim());
+  const [lat2Str, lon2Str] = loc2.split(/[,\s]+/).map(s => s.trim());
+  
+  const lat1 = parseFloat(lat1Str);
+  const lon1 = parseFloat(lon1Str);
+  const lat2 = parseFloat(lat2Str);
+  const lon2 = parseFloat(lon2Str);
+  
+  // 2. Safeguard against invalid coordinates
+  if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) {
+    return null;
+  }
+  
+  const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -35,40 +45,27 @@ function getDistanceKm(loc1: string, loc2: string) {
 export default async function Home({ searchParams }: { searchParams: Promise<{ id: string | undefined }> }) {
   const param = await searchParams;
   const id = param.id;
-  let userExistingBid = null;
 
-  const proddata = await prisma.productAuction.findUnique({ where: { ProdAucId: Number(id) } });
+  const apiRes = id ? await fetchProductById(id) : { data: undefined };
+  const proddata = apiRes.data;
+
   if (!proddata) {
     return (
       <div className="min-h-[65vh] flex items-center justify-center text-gray-500">
-        <p>Auction not found.</p>
+        <p>Auction produce listing not found.</p>
       </div>
     );
   }
 
-  const fdata = await prisma.user.findUnique({ where: { uid: Number(proddata?.fid) } });
-  if (!fdata) {
-    return (
-      <div className="min-h-[65vh] flex items-center justify-center text-gray-500">
-        <p>Farmer details not found.</p>
-      </div>
-    );
-  }
+  const fdata = {
+    uid: proddata.fid || 0,
+    uname: `Farmer #${proddata.fid || 0}`,
+    uloc: '28.6139, 77.2090', // Default location
+  };
 
   const session = await getUserSession();
-  let buyerLoc = null;
-  let distance = null;
-
-  if (session?.uid) {
-    const buyerData = await prisma.user.findUnique({ where: { uid: session.uid } });
-    if (buyerData?.uloc) {
-      buyerLoc = buyerData.uloc;
-      distance = getDistanceKm(fdata.uloc, buyerLoc);
-    }
-  }
-  userExistingBid = await prisma.bidId.findFirst({
-        where: { aucId: Number(id), cid: session?.uid }
-    });
+  const buyerLoc = session?.uloc || null;
+  const distance = buyerLoc ? getDistanceKm(fdata.uloc, buyerLoc) : null;
 
   return (
     <div className="bg-white min-h-[80vh]">
@@ -79,7 +76,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
             
           {/* LEFT COLUMN: Image Gallery */}
           <div className="w-full">
-            <ImageGallery images={proddata.imageUrl} />
+            <ImageGallery images={Array.isArray(proddata.imageUrl) ? proddata.imageUrl : [proddata.imageUrl || '/agri-conn-logo.png']} />
           </div>
 
           {/* RIGHT COLUMN: Details & Action */}
@@ -109,20 +106,34 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
               </p>
 
               {/* Unified Input & Button Group */}
-              <div className="mt-8 bg-gray-50 p-6 rounded-xl border border-gray-100 shadow-sm">
-    <label htmlFor='bid' className='block text-sm font-bold text-gray-900 mb-2'>Place Your Bid</label>
-    
-    {/* Drop the Client Component right here! */}
-    <BidForm 
-    aucId={proddata.ProdAucId} 
-    farmerId={proddata.fid} 
-    startingBid={proddata.startingBid} 
-    buyerId={session?.uid || null} 
-    existingBidAmt={userExistingBid?.bidAmount} 
-/>
-    
-    <p className="mt-2 text-xs text-gray-500">Enter an amount higher than the current bid.</p>
-</div>
+              <div className="mt-8 bg-gray-50 p-6 rounded-xl border border-gray-100 shadow-sm space-y-4">
+                <div>
+                  <label htmlFor='bid' className='block text-sm font-bold text-gray-900 mb-2'>Place Your Bid</label>
+                  
+                  <BidForm 
+                    aucId={proddata.ProdAucId} 
+                    farmerId={proddata.fid || 0} 
+                    startingBid={proddata.startingBid} 
+                    buyerId={session?.uid || null} 
+                    existingBidAmt={undefined} 
+                  />
+                  
+                  <p className="mt-2 text-xs text-gray-500">Enter an amount higher than the current bid.</p>
+                </div>
+
+                <div className="pt-3 border-t border-gray-200 flex items-center justify-between gap-4">
+                  <div className="text-xs text-gray-500">
+                    <span className="font-semibold text-gray-700 block">Have questions or want to negotiate terms?</span>
+                    <span>Chat directly with farmer ({fdata.uname}) before bidding.</span>
+                  </div>
+
+                  <ContactFarmerButton
+                    aucId={proddata.ProdAucId}
+                    farmerId={proddata.fid || 0}
+                    buyerId={session?.uid || null}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Map Section */}
