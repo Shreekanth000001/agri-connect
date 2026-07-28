@@ -18,8 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install uv for fast dependency resolution
 RUN pip install --no-cache-dir uv
 
-# Copy project metadata & install dependencies into virtualenv
-COPY pyproject.toml README.md* ./
+# Copy full project source code & install dependencies into virtualenv
+COPY . .
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN uv pip install --no-cache-dir .
