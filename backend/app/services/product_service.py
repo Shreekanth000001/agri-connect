@@ -1,4 +1,7 @@
+import json
+import logging
 from datetime import datetime
+from typing import Any
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User, Role
@@ -11,8 +14,17 @@ from app.schemas.product import (
     PaginatedProductsResponse,
     CategoryListResponse
 )
+from app.services.ai.memory import memory_store
+
+logger = logging.getLogger(__name__)
+
+CACHE_TTL_SECONDS = 30
 
 class ProductService:
+    def _cache_key(self, prefix: str, **kwargs: Any) -> str:
+        param_str = ":".join(f"{k}={v}" for k, v in sorted(kwargs.items()) if v is not None)
+        return f"agri:cache:{prefix}:{param_str}"
+
     async def get_products(
         self,
         db: AsyncSession,
@@ -25,6 +37,19 @@ class ProductService:
         farmer_id: int | None = None,
         sort_by: str = "newest"
     ) -> PaginatedProductsResponse:
+        cache_key = self._cache_key(
+            "catalog", page=page, limit=limit, category=category, status=status_filter,
+            min=min_price, max=max_price, farmer=farmer_id, sort=sort_by
+        )
+        
+        # Check cache
+        cached_data = await memory_store.get_val(cache_key)
+        if cached_data:
+            try:
+                return PaginatedProductsResponse(**json.loads(cached_data))
+            except Exception:
+                pass
+
         items, total = await product_repository.get_all(
             db, page=page, limit=limit, category=category, status=status_filter,
             min_price=min_price, max_price=max_price, farmer_id=farmer_id, sort_by=sort_by
@@ -33,13 +58,20 @@ class ProductService:
         pages = (total + limit - 1) // limit if limit > 0 else 1
         summaries = [ProductResponse.model_validate(item) for item in items]
         
-        return PaginatedProductsResponse(
+        response = PaginatedProductsResponse(
             items=summaries,
             total=total,
             page=page,
             pages=pages,
             limit=limit
         )
+
+        try:
+            await memory_store.set_val(cache_key, response.model_dump_json(), ttl_seconds=CACHE_TTL_SECONDS)
+        except Exception:
+            pass
+
+        return response
 
     async def search_products(
         self,
@@ -49,6 +81,15 @@ class ProductService:
         limit: int = 20,
         category: str | None = None
     ) -> PaginatedProductsResponse:
+        cache_key = self._cache_key("search", q=q, page=page, limit=limit, category=category)
+
+        cached_data = await memory_store.get_val(cache_key)
+        if cached_data:
+            try:
+                return PaginatedProductsResponse(**json.loads(cached_data))
+            except Exception:
+                pass
+
         items, total = await product_repository.search(
             db, q=q, page=page, limit=limit, category=category
         )
@@ -56,7 +97,7 @@ class ProductService:
         pages = (total + limit - 1) // limit if limit > 0 else 1
         summaries = [ProductResponse.model_validate(item) for item in items]
 
-        return PaginatedProductsResponse(
+        response = PaginatedProductsResponse(
             items=summaries,
             total=total,
             page=page,
@@ -64,14 +105,36 @@ class ProductService:
             limit=limit
         )
 
+        try:
+            await memory_store.set_val(cache_key, response.model_dump_json(), ttl_seconds=CACHE_TTL_SECONDS)
+        except Exception:
+            pass
+
+        return response
+
     async def get_product_by_id(self, db: AsyncSession, product_id: int) -> ProductResponse:
+        cache_key = self._cache_key("detail", id=product_id)
+        cached_data = await memory_store.get_val(cache_key)
+        if cached_data:
+            try:
+                return ProductResponse(**json.loads(cached_data))
+            except Exception:
+                pass
+
         product = await product_repository.get_by_id(db, product_id)
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Product with ID {product_id} not found"
             )
-        return ProductResponse.model_validate(product)
+        resp = ProductResponse.model_validate(product)
+
+        try:
+            await memory_store.set_val(cache_key, resp.model_dump_json(), ttl_seconds=CACHE_TTL_SECONDS)
+        except Exception:
+            pass
+
+        return resp
 
     async def create_product(
         self, db: AsyncSession, current_user: User, product_in: ProductCreate

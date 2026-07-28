@@ -237,7 +237,7 @@ INDIAN_PRODUCTS = [
         "description": "Export quality sweet green seedless grapes from Nashik vineyards. Crisp texture, sugar level Brix 18+. Packed in 5kg corrugated cartons.",
         "startingBid": 375.0,
         "category": Category.FRUITS,
-        "imageUrl": ["https://images.unsplash.com/photo-1596368708386-5d0f63851157?auto=format&fit=crop&w=800&q=80"],
+        "imageUrl": ["https://images.unsplash.com/photo-1537640538966-79f369143f8f?auto=format&fit=crop&w=800&q=80"],
     },
     {
         "fid": 8, # Devendra Jagtap
@@ -255,7 +255,7 @@ INDIAN_PRODUCTS = [
         "description": "Medium-sized firm red onions from Nashik APMC belt. Low moisture, 45-day storage life, strong pungent aroma. Packed in 50kg jute sacks.",
         "startingBid": 2400.0,
         "category": Category.VEGETABLES,
-        "imageUrl": ["https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?auto=format&fit=crop&w=800&q=80"],
+        "imageUrl": ["https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&w=800&q=80"],
     },
     {
         "fid": 10, # Tapan Das
@@ -329,7 +329,7 @@ INDIAN_PRODUCTS = [
         "description": "Double-sorted Gujarat groundnut kernels with high oil yield (48%). Ideal for oil extraction and roasted snacks.",
         "startingBid": 7800.0, # per quintal
         "category": Category.GRAINS,
-        "imageUrl": ["https://images.unsplash.com/photo-1567892320421-1c657571ea48?auto=format&fit=crop&w=800&q=80"],
+        "imageUrl": ["https://images.unsplash.com/photo-1534483509719-3feaee7c30da?auto=format&fit=crop&w=800&q=80"],
     },
 
     # DAIRY

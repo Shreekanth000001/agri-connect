@@ -1,15 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
 from typing import Optional
 from app.api.deps import SessionDep, CurrentUser, FarmerDep
 from app.models.auction import ProductAuction, AuctionStatus
 from app.schemas.auction import AuctionCreate, Auction, PaginatedAuctions, AuctionSummary
+from app.schemas.product import ProductCreate
+from app.repositories.product_repository import product_repository
 
 router = APIRouter(prefix="/auctions", tags=["auctions"])
-
-from sqlalchemy import select, func, cast, String, or_
-
-from app.models.user import User
 
 @router.get("", response_model=PaginatedAuctions)
 async def get_auctions(
@@ -23,35 +20,16 @@ async def get_auctions(
     search: Optional[str] = None,
     q: Optional[str] = None
 ):
-    query = select(ProductAuction).outerjoin(User, ProductAuction.fid == User.uid)
     farmer_target = farmer_id if farmer_id is not None else fid
-    if farmer_target is not None:
-        query = query.where(ProductAuction.fid == farmer_target)
-    if status and status.upper() != "ALL":
-        query = query.where(cast(ProductAuction.auctionStatus, String) == status)
-    if category and category.upper() != "ALL":
-        query = query.where(func.upper(cast(ProductAuction.category, String)) == category.upper())
-    
     search_term = search or q
     if search_term:
-        search_pattern = f"%{search_term}%"
-        query = query.where(
-            or_(
-                ProductAuction.title.ilike(search_pattern),
-                ProductAuction.description.ilike(search_pattern),
-                User.uname.ilike(search_pattern)
-            )
+        items, total = await product_repository.search(db, q=search_term, page=page, limit=limit, category=category)
+    else:
+        items, total = await product_repository.get_all(
+            db, page=page, limit=limit, category=category, status=status, farmer_id=farmer_target
         )
-        
-    total_result = await db.execute(select(func.count()).select_from(query.subquery()))
-    total = total_result.scalar() or 0
-    
-    query = query.offset((page - 1) * limit).limit(limit)
-    result = await db.execute(query)
-    items = result.scalars().all()
     
     summaries = [AuctionSummary.model_validate(item) for item in items]
-        
     return PaginatedAuctions(
         items=summaries,
         total=total,
@@ -66,24 +44,8 @@ async def search_auctions(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100)
 ):
-    search_pattern = f"%{q}%"
-    query = select(ProductAuction).outerjoin(User, ProductAuction.fid == User.uid).where(
-        or_(
-            ProductAuction.title.ilike(search_pattern),
-            ProductAuction.description.ilike(search_pattern),
-            User.uname.ilike(search_pattern)
-        )
-    )
-    
-    total_result = await db.execute(select(func.count()).select_from(query.subquery()))
-    total = total_result.scalar() or 0
-    
-    query = query.offset((page - 1) * limit).limit(limit)
-    result = await db.execute(query)
-    items = result.scalars().all()
-    
+    items, total = await product_repository.search(db, q=q, page=page, limit=limit)
     summaries = [AuctionSummary.model_validate(item) for item in items]
-        
     return PaginatedAuctions(
         items=summaries,
         total=total,
@@ -93,7 +55,7 @@ async def search_auctions(
 
 @router.get("/{id}", response_model=Auction)
 async def get_auction(id: int, db: SessionDep):
-    auction = await db.get(ProductAuction, id)
+    auction = await product_repository.get_by_id(db, id)
     if not auction:
         raise HTTPException(status_code=404, detail="Auction not found")
     return auction
@@ -104,20 +66,16 @@ async def create_auction(
     db: SessionDep,
     current_farmer: FarmerDep
 ):
-    db_auction = ProductAuction(
-        fid=current_farmer.uid,
+    product_in = ProductCreate(
         title=auction_in.title,
         description=auction_in.description,
         startingBid=auction_in.startingBid,
         startTime=auction_in.startTime,
         endTime=auction_in.endTime,
-        category=auction_in.category,
+        category=auction_in.category, # type: ignore
         imageUrl=auction_in.imageUrl
     )
-    db.add(db_auction)
-    await db.commit()
-    await db.refresh(db_auction)
-    return db_auction
+    return await product_repository.create(db, current_farmer.uid, product_in)
 
 @router.patch("/{id}/cancel", response_model=Auction)
 async def cancel_auction(
@@ -125,13 +83,14 @@ async def cancel_auction(
     db: SessionDep,
     current_farmer: FarmerDep
 ):
-    auction = await db.get(ProductAuction, id)
+    auction = await product_repository.get_by_id(db, id)
     if not auction:
         raise HTTPException(status_code=404, detail="Auction not found")
     if auction.fid != current_farmer.uid:
         raise HTTPException(status_code=403, detail="Not authorized")
         
     auction.auctionStatus = AuctionStatus.CANCELLED
+    db.add(auction)
     await db.commit()
     await db.refresh(auction)
     return auction

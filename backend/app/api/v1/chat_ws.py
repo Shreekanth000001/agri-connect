@@ -11,32 +11,26 @@ from app.schemas.token import TokenPayload
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 async def get_current_user_ws(token: str) -> User | None:
-    import os
-    secrets_to_try = [
-        security_settings.SECRET_KEY,
-        os.getenv("SESSION_SECRET"),
-        os.getenv("AUTH_SECRET"),
-        "agri-secret-key-default-2026-antigravity",
-        "supersecretkey_please_change_in_production"
-    ]
-    secrets = list(dict.fromkeys(s for s in secrets_to_try if s))
+    if not token or not token.strip():
+        return None
 
-    uid = None
-    for sec in secrets:
-        try:
-            payload = jwt.decode(token, sec, algorithms=[security_settings.ALGORITHM])
-            if "sub" in payload and str(payload["sub"]).isdigit():
-                uid = int(payload["sub"])
-            elif "uid" in payload and str(payload["uid"]).isdigit():
-                uid = int(payload["uid"])
-            elif "userId" in payload and str(payload["userId"]).isdigit():
-                uid = int(payload["userId"])
-            if uid is not None:
-                break
-        except Exception:
-            continue
+    try:
+        payload = jwt.decode(
+            token.strip(),
+            security_settings.SECRET_KEY,
+            algorithms=[security_settings.ALGORITHM]
+        )
+        uid = None
+        if "sub" in payload and str(payload["sub"]).isdigit():
+            uid = int(payload["sub"])
+        elif "uid" in payload and str(payload["uid"]).isdigit():
+            uid = int(payload["uid"])
+        elif "userId" in payload and str(payload["userId"]).isdigit():
+            uid = int(payload["userId"])
 
-    if uid is None:
+        if uid is None:
+            return None
+    except JWTError:
         return None
 
     async with AsyncSessionLocal() as session:

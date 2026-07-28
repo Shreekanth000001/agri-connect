@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -14,6 +14,12 @@ class Status(str, enum.Enum):
 
 class BidId(Base):
     __tablename__ = "BidId"
+    __table_args__ = (
+        Index("ix_bid_auc_id", "aucId"),
+        Index("ix_bid_cid", "cid"),
+        Index("ix_bid_fid", "fid"),
+        Index("ix_bid_status", "status"),
+    )
 
     bidId: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     aucId: Mapped[int] = mapped_column(ForeignKey("ProductAuction.ProdAucId", ondelete="RESTRICT"))

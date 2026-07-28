@@ -36,8 +36,10 @@ class ProductRepository:
         if conditions:
             query = query.where(and_(*conditions))
 
-        # Total count query
-        total_stmt = select(func.count()).select_from(query.subquery())
+        # Optimized total count query without subquery overhead
+        total_stmt = select(func.count(ProductAuction.ProdAucId))
+        if conditions:
+            total_stmt = total_stmt.where(and_(*conditions))
         total_res = await db.execute(total_stmt)
         total = total_res.scalar() or 0
 
@@ -67,23 +69,30 @@ class ProductRepository:
         category: str | None = None
     ) -> tuple[list[ProductAuction], int]:
         search_pattern = f"%{q}%"
+        where_clause = or_(
+            ProductAuction.title.ilike(search_pattern),
+            ProductAuction.description.ilike(search_pattern),
+            User.uname.ilike(search_pattern)
+        )
+
         query = (
             select(ProductAuction)
             .outerjoin(User, ProductAuction.fid == User.uid)
             .options(selectinload(ProductAuction.user_fid))
-            .where(
-                or_(
-                    ProductAuction.title.ilike(search_pattern),
-                    ProductAuction.description.ilike(search_pattern),
-                    User.uname.ilike(search_pattern)
-                )
-            )
+            .where(where_clause)
         )
 
         if category:
             query = query.where(ProductAuction.category == category)
 
-        total_stmt = select(func.count()).select_from(query.subquery())
+        total_stmt = (
+            select(func.count(ProductAuction.ProdAucId))
+            .outerjoin(User, ProductAuction.fid == User.uid)
+            .where(where_clause)
+        )
+        if category:
+            total_stmt = total_stmt.where(ProductAuction.category == category)
+
         total_res = await db.execute(total_stmt)
         total = total_res.scalar() or 0
 

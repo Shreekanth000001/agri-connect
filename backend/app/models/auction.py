@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Enum, Index
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -22,6 +22,11 @@ class Category(str, enum.Enum):
 
 class ProductAuction(Base):
     __tablename__ = "ProductAuction"
+    __table_args__ = (
+        Index("ix_product_auction_fid", "fid"),
+        Index("ix_product_auction_status_cat", "auctionStatus", "category"),
+        Index("ix_product_auction_created_at", "CreatedAt"),
+    )
 
     ProdAucId: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     fid: Mapped[int] = mapped_column(ForeignKey("User.uid", ondelete="RESTRICT"))

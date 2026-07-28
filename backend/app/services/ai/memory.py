@@ -39,28 +39,93 @@ class InMemorySaver(BaseMemoryInterface):
         if thread_id in self._store:
             del self._store[thread_id]
 
+import os
+import json
+import redis.asyncio as aioredis
+from langchain_core.messages import message_to_dict, messages_from_dict
+from app.core.security import security_settings
+
 class RedisMemorySaver(BaseMemoryInterface):
     """
-    Stubbed Redis memory saver for future Redis integration.
-    Currently logs operations and falls back to in-memory store until Redis URL is configured.
+    Production-grade Redis memory checkpointer using redis.asyncio.
+    Disables ephemeral InMemorySaver fallback in production mode.
     """
 
     def __init__(self, redis_url: str | None = None):
-        self.redis_url = redis_url
-        self._fallback = InMemorySaver()
-        logger.info(f"Initialized RedisMemorySaver (redis_url={redis_url or 'Stubbed/In-Memory'})")
+        self.redis_url = redis_url or os.getenv("REDIS_URL") or "redis://localhost:6379/0"
+        self.is_production = security_settings.ENVIRONMENT.lower() == "production"
+        self._fallback = InMemorySaver() if not self.is_production else None
+        self._redis = None
+        
+        try:
+            self._redis = aioredis.from_url(self.redis_url, decode_responses=True)
+            logger.info(f"Initialized RedisMemorySaver with Redis at {self.redis_url}")
+        except Exception as e:
+            if self.is_production:
+                logger.error(f"CRITICAL: Failed to connect to Redis at {self.redis_url} in production mode: {e}")
+            else:
+                logger.warning(f"Could not connect to Redis at {self.redis_url}: {e}. Local dev in-memory store active.")
 
     async def get_history(self, thread_id: str) -> List[BaseMessage]:
-        logger.debug(f"[RedisMemorySaver Stub] Reading history for thread_id={thread_id}")
-        return await self._fallback.get_history(thread_id)
+        if self._redis:
+            try:
+                key = f"agri:chat:history:{thread_id}"
+                data = await self._redis.get(key)
+                if data:
+                    raw_dicts = json.loads(data)
+                    return messages_from_dict(raw_dicts)
+            except Exception as e:
+                logger.error(f"Redis get_history error for thread {thread_id}: {e}")
+                if self.is_production:
+                    return []
+        
+        if self._fallback:
+            return await self._fallback.get_history(thread_id)
+        return []
 
     async def save_messages(self, thread_id: str, messages: List[BaseMessage]) -> None:
-        logger.debug(f"[RedisMemorySaver Stub] Saving {len(messages)} messages for thread_id={thread_id}")
-        await self._fallback.save_messages(thread_id, messages)
+        current_history = await self.get_history(thread_id)
+        all_msgs = current_history + list(messages)
+
+        if self._redis:
+            try:
+                key = f"agri:chat:history:{thread_id}"
+                msg_dicts = [message_to_dict(m) for m in all_msgs]
+                await self._redis.set(key, json.dumps(msg_dicts), ex=86400 * 7) # 7-day TTL
+            except Exception as e:
+                logger.error(f"Redis save_messages error for thread {thread_id}: {e}")
+
+        if self._fallback:
+            await self._fallback.save_messages(thread_id, messages)
 
     async def clear_history(self, thread_id: str) -> None:
-        logger.debug(f"[RedisMemorySaver Stub] Clearing history for thread_id={thread_id}")
-        await self._fallback.clear_history(thread_id)
+        if self._redis:
+            try:
+                key = f"agri:chat:history:{thread_id}"
+                await self._redis.delete(key)
+            except Exception as e:
+                logger.error(f"Redis clear_history error for thread {thread_id}: {e}")
+
+    async def get_val(self, key: str) -> str | None:
+        if self._redis:
+            try:
+                return await self._redis.get(key)
+            except Exception as e:
+                logger.error(f"Redis get_val error for key {key}: {e}")
+        if self._fallback and hasattr(self._fallback, "_cache"):
+            return self._fallback._cache.get(key)
+        return None
+
+    async def set_val(self, key: str, val: str, ttl_seconds: int = 60) -> None:
+        if self._redis:
+            try:
+                await self._redis.set(key, val, ex=ttl_seconds)
+            except Exception as e:
+                logger.error(f"Redis set_val error for key {key}: {e}")
+        if self._fallback:
+            if not hasattr(self._fallback, "_cache"):
+                self._fallback._cache = {}
+            self._fallback._cache[key] = val
 
 # Default global memory saver instance
-memory_store = InMemorySaver()
+memory_store = RedisMemorySaver()

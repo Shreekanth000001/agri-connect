@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, List
 from fastapi import WebSocket
 
@@ -28,16 +29,19 @@ class ConnectionManager:
 
     async def broadcast_to_conversation(self, conversation_id: int, message: dict):
         if conversation_id in self.active_connections:
-            # Send to all connected sockets in this conversation
-            disconnected_sockets = []
-            for connection in self.active_connections[conversation_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    disconnected_sockets.append(connection)
+            sockets = list(self.active_connections[conversation_id])
+            if not sockets:
+                return
 
-            # Cleanup broken sockets
-            for socket in disconnected_sockets:
-                self.disconnect(socket, conversation_id)
+            # Concurrent parallel broadcast to all listening WebSockets
+            results = await asyncio.gather(
+                *[s.send_json(message) for s in sockets],
+                return_exceptions=True
+            )
+
+            # Cleanup sockets that threw errors/disconnected
+            for socket, res in zip(sockets, results):
+                if isinstance(res, Exception):
+                    self.disconnect(socket, conversation_id)
 
 ws_manager = ConnectionManager()

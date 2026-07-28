@@ -25,7 +25,6 @@ async def get_current_user(
     session: SessionDep,
     header_token: str | None = Depends(reusable_oauth2)
 ) -> User:
-    # 1. First Priority: Extract token from Authorization header, Cookie, or Query param
     auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
     token = header_token
     if not token and auth_header and auth_header.lower().startswith("bearer "):
@@ -34,61 +33,51 @@ async def get_current_user(
     if not token:
         token = request.cookies.get("session") or request.cookies.get("token") or request.query_params.get("token")
 
-    if token:
-        secrets_to_try = [
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication credentials were not provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
             security_settings.SECRET_KEY,
-            os.getenv("SESSION_SECRET"),
-            os.getenv("AUTH_SECRET"),
-            "agri-secret-key-default-2026-antigravity",
-            "supersecretkey_please_change_in_production"
-        ]
-        secrets = list(dict.fromkeys(s for s in secrets_to_try if s))
-        
+            algorithms=[security_settings.ALGORITHM]
+        )
         uid = None
-        for sec in secrets:
-            try:
-                payload = jwt.decode(token, sec, algorithms=[security_settings.ALGORITHM])
-                if "sub" in payload and str(payload["sub"]).isdigit():
-                    uid = int(payload["sub"])
-                elif "uid" in payload and str(payload["uid"]).isdigit():
-                    uid = int(payload["uid"])
-                elif "userId" in payload and str(payload["userId"]).isdigit():
-                    uid = int(payload["userId"])
-                elif "userDetails" in payload and isinstance(payload["userDetails"], dict):
-                    uid = payload["userDetails"].get("uid")
-                
-                if uid is not None:
-                    uid = int(uid)
-                    break
-            except Exception:
-                continue
+        if "sub" in payload and str(payload["sub"]).isdigit():
+            uid = int(payload["sub"])
+        elif "uid" in payload and str(payload["uid"]).isdigit():
+            uid = int(payload["uid"])
+        elif "userId" in payload and str(payload["userId"]).isdigit():
+            uid = int(payload["userId"])
+        elif "userDetails" in payload and isinstance(payload["userDetails"], dict):
+            uid = payload["userDetails"].get("uid")
 
-        if uid is not None:
-            user = await session.get(User, uid)
-            if user:
-                return user
+        if uid is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from e
 
-    # 2. Second Priority: Check X-User-Id header (from Next.js server-side proxy)
-    x_user_id = request.headers.get("x-user-id") or request.headers.get("X-User-Id")
-    if x_user_id and x_user_id.isdigit():
-        uid = int(x_user_id)
-        user = await session.get(User, uid)
-        if user:
-            return user
+    user = await session.get(User, uid)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # 3. Third Priority: Check X-User-Email header
-    x_user_email = request.headers.get("x-user-email") or request.headers.get("X-User-Email")
-    if x_user_email:
-        res = await session.execute(select(User).where(User.uemail == x_user_email))
-        user = res.scalars().first()
-        if user:
-            return user
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    return user
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
