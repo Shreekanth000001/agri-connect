@@ -6,7 +6,8 @@ FROM python:3.12-slim AS builder
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    VIRTUAL_ENV=/opt/venv
 
 # Install build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir uv
 
 # Copy project metadata & install dependencies into virtualenv
-COPY pyproject.toml .
+COPY pyproject.toml README.md* ./
 RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN uv pip install --no-cache-dir .
@@ -32,6 +33,7 @@ WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH" \
     PORT=8000
 
