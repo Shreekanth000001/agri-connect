@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from app.api.deps import SessionDep, CurrentUser, FarmerDep, BuyerDep
 from app.models.auction import ProductAuction, AuctionStatus
 from app.models.bid import BidId, Status
@@ -7,29 +8,34 @@ from app.schemas.bid import BidCreate, Bid
 
 router = APIRouter(tags=["bids"])
 
+@router.post("/bids", response_model=Bid, status_code=status.HTTP_201_CREATED)
 @router.post("/auctions/{id}/bids", response_model=Bid, status_code=status.HTTP_201_CREATED)
 async def create_bid(
-    id: int,
     bid_in: BidCreate,
     db: SessionDep,
-    current_buyer: BuyerDep
+    current_buyer: BuyerDep,
+    id: int | None = None,
 ):
-    auction = await db.get(ProductAuction, id)
+    auc_id = id or bid_in.aucId
+    if not auc_id:
+        raise HTTPException(status_code=400, detail="Auction ID (aucId) is required")
+
+    auction = await db.get(ProductAuction, auc_id)
     if not auction:
         raise HTTPException(status_code=404, detail="Auction not found")
     if auction.auctionStatus != AuctionStatus.OPEN:
         raise HTTPException(status_code=400, detail="Auction is not open")
     if bid_in.bidAmount <= auction.startingBid:
-        raise HTTPException(status_code=400, detail="Bid must be higher than starting bid")
+        raise HTTPException(status_code=400, detail=f"Bid amount (₹{bid_in.bidAmount}) must be higher than starting bid (₹{auction.startingBid})")
         
     existing_bid = await db.execute(
-        select(BidId).where(BidId.aucId == id, BidId.cid == current_buyer.uid)
+        select(BidId).where(BidId.aucId == auc_id, BidId.cid == current_buyer.uid)
     )
     if existing_bid.scalars().first():
         raise HTTPException(status_code=409, detail="You have already bid on this auction")
         
     db_bid = BidId(
-        aucId=id,
+        aucId=auc_id,
         cid=current_buyer.uid,
         fid=auction.fid,
         bidAmount=bid_in.bidAmount,
@@ -90,7 +96,7 @@ async def accept_bid(
     conv_response = ConversationResponse.model_validate(updated_conversation)
 
     return {
-        "bid": bid,
+        "bid": Bid.model_validate(bid),
         "auction_status": auction.auctionStatus if auction else "CLOSED",
         "conversation": conv_response
     }
@@ -101,7 +107,9 @@ async def reject_bid(
     db: SessionDep,
     current_farmer: FarmerDep
 ):
-    bid = await db.get(BidId, id)
+    stmt = select(BidId).where(BidId.bidId == id).options(selectinload(BidId.user_cid))
+    res = await db.execute(stmt)
+    bid = res.scalars().first()
     if not bid:
         raise HTTPException(status_code=404, detail="Bid not found")
     if bid.fid != current_farmer.uid:
@@ -119,6 +127,6 @@ async def get_my_bids(
 ):
     stmt = select(BidId).where(
         (BidId.cid == current_user.uid) | (BidId.fid == current_user.uid)
-    ).order_by(BidId.bidTime.desc())
+    ).options(selectinload(BidId.user_cid)).order_by(BidId.bidTime.desc())
     res = await db.execute(stmt)
     return list(res.scalars().all())

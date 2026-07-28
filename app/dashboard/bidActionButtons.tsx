@@ -23,7 +23,12 @@ export default function BidActionButtons({ bidId, aucId }: { bidId: number, aucI
             const data = await res.json();
 
             if (res.ok && data.success) {
-                router.refresh(); // This forces the server to re-fetch the dashboard data!
+                if (actionType === 'ACCEPT') {
+                    const chatUrl = data.conversationId ? `/chat?id=${data.conversationId}` : '/chat';
+                    router.push(chatUrl);
+                } else {
+                    router.refresh();
+                }
             } else {
                 alert(data.error || "Failed to process action.");
             }
@@ -52,5 +57,42 @@ export default function BidActionButtons({ bidId, aucId }: { bidId: number, aucI
                 {isPending ? "..." : "Accept"}
             </button>
         </div>
+    );
+}
+
+export function CloseAuctionButton({ aucId }: { aucId: number }) {
+    const [isPending, setIsPending] = useState(false);
+    const router = useRouter();
+
+    const handleClose = async () => {
+        if (!confirm("Are you sure you want to close this auction?")) return;
+        setIsPending(true);
+        try {
+            const res = await fetch('/api/bid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ aucId, actionType: 'CLOSE_AUCTION' })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                router.refresh();
+            } else {
+                alert(data.error || "Failed to close auction.");
+            }
+        } catch {
+            alert("Network error.");
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    return (
+        <button
+            onClick={handleClose}
+            disabled={isPending}
+            className="px-3 py-1 text-xs font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors disabled:opacity-50"
+        >
+            {isPending ? "Closing..." : "Close Auction"}
+        </button>
     );
 }

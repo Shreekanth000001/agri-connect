@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUserSession } from '@/lib/session';
+import { getUserSession, getAccessToken } from '@/lib/session';
 import { apiClient } from '@/lib/api/apiClient';
 
 export async function POST(req: Request) {
@@ -22,6 +22,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const token = await getAccessToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     const res = await apiClient.post('/bids', {
       auction_id: Number(aucId),
       aucId: Number(aucId),
@@ -29,12 +32,12 @@ export async function POST(req: Request) {
       cid: session.uid,
       bidAmount: Number(bidAmount),
       amount: Number(bidAmount),
-    });
+    }, headers);
 
     if (res.error) {
       return NextResponse.json(
-        { success: true, bid: { bidId: Date.now(), aucId, fid, cid, bidAmount, status: 'PENDING' } },
-        { status: 201 }
+        { success: false, message: res.error },
+        { status: res.status || 400 }
       );
     }
 
@@ -42,8 +45,8 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Bidding Error:", error);
     return NextResponse.json(
-      { success: true, bid: { bidId: Date.now(), status: 'PENDING' } },
-      { status: 201 }
+      { success: false, message: "Failed to place bid. Please try again." },
+      { status: 500 }
     );
   }
 }

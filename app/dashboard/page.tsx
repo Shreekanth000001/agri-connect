@@ -1,7 +1,7 @@
 import { getUserSession, getAccessToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import BidActionButtons from '@/app/dashboard/bidActionButtons';
+import BidActionButtons, { CloseAuctionButton } from '@/app/dashboard/bidActionButtons';
 import { apiClient } from '@/lib/api/apiClient';
 
 function formatDate(dateInput: Date | string) {
@@ -77,9 +77,14 @@ export default async function DashboardPage() {
                     <h2 className="text-xl font-bold text-gray-900">{auction.title}</h2>
                     <p className="text-sm text-gray-600">Starting Bid: ₹{auction.startingBid} | Ends: {formatDate(auction.endTime)}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${auction.auctionStatus === 'CLOSED' ? 'bg-gray-200 text-gray-700' : 'bg-green-200 text-green-800'}`}>
-                    {auction.auctionStatus}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${auction.auctionStatus === 'CLOSED' ? 'bg-gray-200 text-gray-700' : 'bg-green-200 text-green-800'}`}>
+                      {auction.auctionStatus}
+                    </span>
+                    {auction.auctionStatus === 'OPEN' && (
+                      <CloseAuctionButton aucId={auction.ProdAucId} />
+                    )}
+                  </div>
                 </div>
 
                 <div className="px-6 py-4">

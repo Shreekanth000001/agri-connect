@@ -78,7 +78,8 @@ async def create_auction(
     return await product_repository.create(db, current_farmer.uid, product_in)
 
 @router.patch("/{id}/cancel", response_model=Auction)
-async def cancel_auction(
+@router.patch("/{id}/close", response_model=Auction)
+async def cancel_or_close_auction(
     id: int,
     db: SessionDep,
     current_farmer: FarmerDep
@@ -89,7 +90,7 @@ async def cancel_auction(
     if auction.fid != current_farmer.uid:
         raise HTTPException(status_code=403, detail="Not authorized")
         
-    auction.auctionStatus = AuctionStatus.CANCELLED
+    auction.auctionStatus = AuctionStatus.CLOSED
     db.add(auction)
     await db.commit()
     await db.refresh(auction)

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from 'next/navigation';
+import { getAccessToken } from '@/lib/session';
 import { apiClient } from '@/lib/api/apiClient';
 
 export default async function AucFormSubmit(formData: FormData) {
@@ -28,6 +29,9 @@ export default async function AucFormSubmit(formData: FormData) {
       }
     }
 
+    const token = await getAccessToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     await apiClient.post('/auctions', {
       farmer_id: fid,
       fid,
@@ -42,7 +46,7 @@ export default async function AucFormSubmit(formData: FormData) {
       category,
       images: imageUrl,
       imageUrl,
-    });
+    }, headers);
   } catch (error) {
     console.error("❌ Auction Creation Error:", error);
   }

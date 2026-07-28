@@ -56,7 +56,7 @@ export function normalizeProductItem(raw: Record<string, unknown>): ProductAucti
     raw.farmerName || raw.farmer_name || rawUser.uname || rawUser.name || rawUser.full_name || 'Agri Farmer'
   );
   const farmerLocation = String(
-    raw.location || raw.farmerLocation || raw.farmer_location || rawUser.ugeo || rawUser.location || rawUser.uloc || 'India'
+    rawUser.uloc || rawUser.ugeo || raw.farmerLocation || raw.farmer_location || raw.location || '12.9716, 77.5946'
   );
 
   return {

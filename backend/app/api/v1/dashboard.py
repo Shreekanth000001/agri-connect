@@ -14,6 +14,7 @@ async def get_farmer_dashboard(db: SessionDep, current_farmer: FarmerDep):
     auctions_res = await db.execute(
         select(ProductAuction)
         .where(ProductAuction.fid == current_farmer.uid)
+        .options(selectinload(ProductAuction.auc_bid).selectinload(BidId.user_cid))
         .order_by(ProductAuction.CreatedAt.desc())
     )
     auctions = list(auctions_res.scalars().all())
