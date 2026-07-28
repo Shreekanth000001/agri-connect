@@ -93,7 +93,7 @@ export default function ConversationList({
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-gray-400 text-sm">
-            No negotiations found matching &quot;{search}&quot;
+            {search.trim() ? `No negotiations found matching "${search}"` : "No conversation started"}
           </div>
         ) : (
           filtered.map((conv) => {

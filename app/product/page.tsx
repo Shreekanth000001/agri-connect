@@ -59,8 +59,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ i
 
   const fdata = {
     uid: proddata.fid || 0,
-    uname: `Farmer #${proddata.fid || 0}`,
-    uloc: '28.6139, 77.2090', // Default location
+    uname: proddata.farmerName || `Farmer #${proddata.fid || 0}`,
+    uloc: proddata.farmerLocation || proddata.location || 'India',
   };
 
   const session = await getUserSession();

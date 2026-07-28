@@ -1,4 +1,4 @@
-import { getUserSession } from '@/lib/session';
+import { getUserSession, getAccessToken } from '@/lib/session';
 import { logout } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -10,10 +10,11 @@ export default async function ProfilePage() {
     redirect('/auth/login');
   }
 
+  const token = await getAccessToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
   // Fetch actual user details from FastAPI backend
-  const apiRes = await apiClient.get<Record<string, unknown>>('/users/me', {
-    'X-User-Id': String(session.uid),
-  });
+  const apiRes = await apiClient.get<Record<string, unknown>>('/users/me', headers);
   const dbUser = (apiRes.data?.user || apiRes.data) as Record<string, unknown> | undefined;
 
   const actualName = String(dbUser?.name || dbUser?.uname || dbUser?.full_name || session.uname || 'Agri User');

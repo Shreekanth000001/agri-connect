@@ -1,4 +1,4 @@
-import { getUserSession } from '@/lib/session';
+import { getUserSession, getAccessToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import BidActionButtons from '@/app/dashboard/bidActionButtons';
@@ -41,15 +41,16 @@ export default async function DashboardPage() {
   const session = await getUserSession();
   if (!session?.uid) redirect('/auth/login');
 
-  const user = {
-    uid: session.uid,
-    uname: session.uname,
-    role: session.uname.toLowerCase().includes('farmer') ? 'FARMER' : 'BUYER',
-  };
+  const token = await getAccessToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-  if (user.role === 'FARMER') {
-    const res = await apiClient.get<FarmerAuction[]>('/dashboard/farmer');
-    const myAuctions: FarmerAuction[] = res.data || [];
+  const userRole = (session.role || (session.uname.toLowerCase().includes('farmer') ? 'FARMER' : 'BUYER')).toUpperCase();
+
+  if (userRole === 'FARMER') {
+    const res = await apiClient.get<FarmerAuction[] | { auctions: FarmerAuction[] }>('/dashboard/farmer', headers);
+    const myAuctions: FarmerAuction[] = Array.isArray(res.data)
+      ? res.data
+      : (res.data && 'auctions' in res.data && Array.isArray(res.data.auctions) ? res.data.auctions : []);
 
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[80vh]">
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
                 </div>
 
                 <div className="px-6 py-4">
-                  {auction.auc_bid.length === 0 ? (
+                  {!auction.auc_bid || auction.auc_bid.length === 0 ? (
                     <p className="text-sm text-gray-500 italic">No bids yet.</p>
                   ) : (
                     <ul className="divide-y divide-gray-100">
@@ -90,7 +91,7 @@ export default async function DashboardPage() {
                         <li key={bid.bidId} className="py-4 flex justify-between items-center">
                           <div>
                             <p className="font-bold text-lg text-gray-900">₹{bid.bidAmount}</p>
-                            <p className="text-sm text-gray-500">Bid by: {bid.user_cid.uname} • {formatDate(bid.bidTime)}</p>
+                            <p className="text-sm text-gray-500">Bid by: {bid.user_cid?.uname || 'Buyer'} • {formatDate(bid.bidTime)}</p>
                           </div>
                           
                           <div>
@@ -118,8 +119,10 @@ export default async function DashboardPage() {
       </div>
     );
   } else {
-    const res = await apiClient.get<BuyerBid[]>('/dashboard/buyer');
-    const myBids: BuyerBid[] = res.data || [];
+    const res = await apiClient.get<BuyerBid[] | { bids: BuyerBid[] }>('/dashboard/buyer', headers);
+    const myBids: BuyerBid[] = Array.isArray(res.data)
+      ? res.data
+      : (res.data && 'bids' in res.data && Array.isArray(res.data.bids) ? res.data.bids : []);
 
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[80vh]">
@@ -140,9 +143,9 @@ export default async function DashboardPage() {
                 <li key={bid.bidId} className="p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center hover:bg-gray-50 transition-colors">
                   <div className="mb-4 sm:mb-0">
                     <Link href={`/product?id=${bid.aucId}`} className="text-xl font-bold text-gray-900 hover:text-[#009C25] transition-colors">
-                      {bid.auc_bid.title}
+                      {bid.auc_bid?.title || `Auction #${bid.aucId}`}
                     </Link>
-                    <p className="text-sm text-gray-600 mt-1">Farmer: {bid.auc_bid.user_fid.uname}</p>
+                    <p className="text-sm text-gray-600 mt-1">Farmer: {bid.auc_bid?.user_fid?.uname || 'Farmer'}</p>
                     <p className="text-xs text-gray-400 mt-1">Placed on {formatDate(bid.bidTime)}</p>
                   </div>
                   

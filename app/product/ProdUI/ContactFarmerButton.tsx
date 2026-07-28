@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createConversation } from '@/lib/api/chatService';
+import { useAccessToken } from '@/lib/hooks/useAccessToken';
 
 interface ContactFarmerButtonProps {
   aucId: number;
@@ -17,6 +18,7 @@ export default function ContactFarmerButton({
 }: ContactFarmerButtonProps) {
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
+  const { token } = useAccessToken();
 
   const isOwner = Boolean(buyerId && Number(buyerId) === Number(farmerId));
 
@@ -33,8 +35,7 @@ export default function ContactFarmerButton({
 
     setIsPending(true);
     try {
-      // Omit consumer_id so backend automatically assigns current_user.uid
-      const res = await createConversation(aucId, farmerId);
+      const res = await createConversation(aucId, farmerId, token);
 
       if (res.data && res.data.id) {
         // Navigate directly to negotiation chat using res.data.id

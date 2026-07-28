@@ -25,17 +25,7 @@ export default function Home() {
       setData(res.data.items);
       setTotalPages(res.data.totalPages || 1);
     } else {
-      try {
-        const localRes = await fetch(`/productsroute${categoryParam ? `?category=${encodeURIComponent(categoryParam)}` : ''}`);
-        if (localRes.ok) {
-          const items = await localRes.json();
-          setData(items);
-        } else {
-          setError(res.error || "Failed to load produce listings");
-        }
-      } catch {
-        setError(res.error || "Failed to connect to marketplace service");
-      }
+      setError(res.error || "Failed to connect to marketplace service");
     }
     setIsLoading(false);
   };
@@ -54,17 +44,7 @@ export default function Home() {
         setData(res.data.items);
         setTotalPages(res.data.totalPages || 1);
       } else {
-        try {
-          const localRes = await fetch(`/productsroute${categoryParam ? `?category=${encodeURIComponent(categoryParam)}` : ''}`);
-          if (localRes.ok && isMounted) {
-            const items = await localRes.json();
-            setData(items);
-          } else if (isMounted) {
-            setError(res.error || "Failed to load produce listings");
-          }
-        } catch {
-          if (isMounted) setError(res.error || "Failed to connect to marketplace service");
-        }
+        setError(res.error || "Failed to connect to marketplace service");
       }
       if (isMounted) setIsLoading(false);
     }

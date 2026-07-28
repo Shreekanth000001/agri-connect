@@ -82,13 +82,14 @@ export function normalizeChatMessage(
   };
 }
 
-/** Build auth headers: prefer Bearer token, fallback to X-User-Id */
-function authHeaders(accessToken?: string | null, currentUserId?: number | null): Record<string, string> {
+import { getCachedAccessToken } from '@/lib/hooks/useAccessToken';
+
+/** Build auth headers: prefer Bearer token */
+function authHeaders(accessToken?: string | null, _currentUserId?: number | null): Record<string, string> {
   const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  } else if (currentUserId) {
-    headers['X-User-Id'] = String(currentUserId);
+  const token = accessToken || getCachedAccessToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
 }

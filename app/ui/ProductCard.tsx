@@ -71,6 +71,16 @@ export default function ProductCard({ product }: ProductCardProps) {
           <span className="text-xs font-medium text-gray-500">/kg starting</span>
         </div>
 
+        {(product.farmerLocation || product.farmerName) && (
+          <div className="mt-2.5 text-xs flex items-center text-gray-600 font-medium bg-emerald-50/60 px-2.5 py-1 rounded-lg border border-emerald-100/60">
+            <svg className="w-3.5 h-3.5 mr-1.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="truncate">{product.farmerName ? `${product.farmerName} • ` : ''}{product.farmerLocation || 'India'}</span>
+          </div>
+        )}
+
         <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
           <p className="flex justify-between">
             <span className="font-medium text-gray-600">Starts:</span>

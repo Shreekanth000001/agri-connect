@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getUserSession } from '@/lib/session';
+import { getUserSession, getAccessToken } from '@/lib/session';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -13,15 +13,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const token = await getAccessToken();
     const cookieHeader = req.headers.get('cookie') || '';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Cookie': cookieHeader,
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-    // Proxy request to FastAPI backend with Cookie authentication
+    // Proxy request to FastAPI backend with Bearer token authentication
     const res = await fetch(`${FASTAPI_URL}/chat/conversations`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': cookieHeader,
-        'X-User-Id': String(session.uid),
-      },
+      headers,
       cache: 'no-store',
     });
 
@@ -53,16 +57,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const token = await getAccessToken();
     const cookieHeader = req.headers.get('cookie') || '';
     const body = await req.json();
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Cookie': cookieHeader,
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${FASTAPI_URL}/chat/conversations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': cookieHeader,
-        'X-User-Id': String(session.uid),
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
