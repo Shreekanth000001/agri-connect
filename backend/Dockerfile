@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir uv
 
 # Copy full project source code & install dependencies into virtualenv
 COPY . .
-RUN uv venv /opt/venv
+RUN uv venv --seed /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN uv pip install --no-cache-dir .
 
