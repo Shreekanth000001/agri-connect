@@ -30,7 +30,10 @@ export default async function AucFormSubmit(formData: FormData) {
     }
 
     const token = await getAccessToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     await apiClient.post('/auctions', {
       farmer_id: fid,

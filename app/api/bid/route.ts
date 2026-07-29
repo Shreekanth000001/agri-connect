@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     }
 
     const token = await getAccessToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     if (actionType === 'ACCEPT') {
       if (!bidId) return NextResponse.json({ error: "Missing bidId" }, { status: 400 });

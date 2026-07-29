@@ -23,7 +23,10 @@ export async function POST(req: Request) {
     }
 
     const token = await getAccessToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const res = await apiClient.post('/bids', {
       auction_id: Number(aucId),

@@ -11,7 +11,10 @@ export default async function ProfilePage() {
   }
 
   const token = await getAccessToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   // Fetch actual user details from FastAPI backend
   const apiRes = await apiClient.get<Record<string, unknown>>('/users/me', headers);

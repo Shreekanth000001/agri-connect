@@ -42,7 +42,10 @@ export default async function DashboardPage() {
   if (!session?.uid) redirect('/auth/login');
 
   const token = await getAccessToken();
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const userRole = (session.role || (session.uname.toLowerCase().includes('farmer') ? 'FARMER' : 'BUYER')).toUpperCase();
 

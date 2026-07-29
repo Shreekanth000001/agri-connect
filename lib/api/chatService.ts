@@ -85,11 +85,14 @@ export function normalizeChatMessage(
 import { getCachedAccessToken } from '@/lib/hooks/useAccessToken';
 
 /** Build auth headers: prefer Bearer token */
-function authHeaders(accessToken?: string | null, _currentUserId?: number | null): Record<string, string> {
+function authHeaders(accessToken?: string | null, currentUserId?: number | null): Record<string, string> {
   const headers: Record<string, string> = {};
   const token = accessToken || getCachedAccessToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (currentUserId) {
+    headers['X-User-Id'] = String(currentUserId);
   }
   return headers;
 }
