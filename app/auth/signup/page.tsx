@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { signupUser } from '@/lib/api/authService';
 
 const LocationPicker = dynamic(() => import('@/app/auth/signup/LocationPicker'), {
     ssr: false,
@@ -40,24 +41,18 @@ export default function RegisterPage() {
         const fullPhone = `+${cnum} ${ph}`;
 
         try {
-            const response = await fetch('/auth/signupauth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    uname: formData.get("name"),
-                    uemail: formData.get("email"),
-                    password: formData.get("password"),
-                    uphone: fullPhone,
-                    ugeo: fullAddress,
-                    uloc: loc, // Map coordinates
-                    role: role // From state
-                })
+            const apiRes = await signupUser({
+                uname: String(formData.get("name") || ''),
+                uemail: String(formData.get("email") || ''),
+                password: String(formData.get("password") || ''),
+                uphone: fullPhone,
+                ugeo: fullAddress,
+                uloc: loc,
+                role: role,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                setError(data.error || "Registration failed. Please try again.");
+            if (apiRes.error || !apiRes.data) {
+                setError(apiRes.error || "Registration failed. Please try again.");
             } else {
                 // Success! Force hard navigation to refresh all session cookies and state
                 window.location.href = '/';

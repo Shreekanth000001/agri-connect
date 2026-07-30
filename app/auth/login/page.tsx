@@ -1,5 +1,7 @@
 "use client"
 import { FormEvent, useState } from 'react';
+import { loginUser } from '@/lib/api/authService';
+
 export default function LoginPage() {
     // 1. New states for handling errors and loading
     const [error, setError] = useState<string | null>(null);
@@ -8,44 +10,26 @@ export default function LoginPage() {
     async function handleLogin(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         
-        // Reset the error state and turn on the loading spinner
         setError(null);
         setIsLoading(true);
 
         const formData = new FormData(event.currentTarget);
-        const email = formData.get("email");
-        const password = formData.get("password");
+        const email = String(formData.get("email") || '');
+        const password = String(formData.get("password") || '');
 
         try {
-            // Using a relative path so it works in production!
-            const response = await fetch("/auth/login/loginauth", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: email,
-                    password: password
-                })
-            });
+            const apiRes = await loginUser({ email, password });
 
-            // Parse the JSON response from your backend
-            const data = await response.json();
-
-            // 2. Check if the backend sent an error status code (like 400 or 401)
-            if (!response.ok) {
-                // Assuming your backend sends { message: "Invalid password" }
-                // Fallback to a generic message if it doesn't
-                setError(data.message || data.error || "Invalid email or password.");
+            if (apiRes.error || !apiRes.data) {
+                setError(apiRes.error || "Invalid email or password.");
             } else {
-                // 3. Success! Force hard navigation to refresh all session cookies and state
+                // Success! Force hard navigation to refresh all session cookies and state
                 window.location.href = '/';
             }
         } catch (err) {
             console.error("Login request failed:", err);
             setError("Network error. Please check your connection and try again.");
         } finally {
-            // Turn off the loading state regardless of success or failure
             setIsLoading(false);
         }
     }
