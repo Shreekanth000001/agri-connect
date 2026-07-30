@@ -63,8 +63,22 @@ function ChatContent() {
 
     setMessages((prev) => {
       const existing = prev[convId] || [];
-      // Deduplicate: don't add if message ID already exists
-      if (existing.some((m) => m.id === msg.id)) return prev;
+      const incomingId = String(msg.id);
+
+      // If already present by ID, ignore
+      if (existing.some((m) => String(m.id) === incomingId)) return prev;
+
+      // If this WebSocket message matches a pending temp message (same text), replace temp message
+      const tempMatchIndex = existing.findIndex(
+        (m) => String(m.id).startsWith('temp-') && m.text === msg.text
+      );
+
+      if (tempMatchIndex !== -1) {
+        const updated = [...existing];
+        updated[tempMatchIndex] = msg;
+        return { ...prev, [convId]: updated };
+      }
+
       return { ...prev, [convId]: [...existing, msg] };
     });
 
@@ -239,12 +253,22 @@ function ChatContent() {
         ...apiRes.data,
         senderName: 'You',
       };
-      setMessages((prev) => ({
-        ...prev,
-        [activeConvId]: (prev[activeConvId] || []).map((m) =>
-          m.id === tempId ? confirmedMsg : m
-        ),
-      }));
+      setMessages((prev) => {
+        const list = prev[activeConvId] || [];
+        const alreadyHasConfirmed = list.some((m) => String(m.id) === String(confirmedMsg.id));
+        if (alreadyHasConfirmed) {
+          // If WebSocket inserted it already, just remove tempId
+          return {
+            ...prev,
+            [activeConvId]: list.filter((m) => m.id !== tempId),
+          };
+        }
+        // Replace tempId with confirmedMsg
+        return {
+          ...prev,
+          [activeConvId]: list.map((m) => (m.id === tempId ? confirmedMsg : m)),
+        };
+      });
     } else if (apiRes.error) {
       setMsgError(`Message failed: ${apiRes.error}`);
       setMessages((prev) => ({
@@ -280,6 +304,9 @@ function ChatContent() {
     }
   };
 
+  const isMobileSidebarVisible = showMobileList || !activeConv;
+  const isMobileChatVisible = !showMobileList && Boolean(activeConv);
+
   return (
     <div className="bg-gray-50 min-h-[85vh] p-2 sm:p-6 lg:p-8 flex justify-center items-center">
       <div className="w-full max-w-7xl h-[80vh] bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row">
@@ -287,8 +314,8 @@ function ChatContent() {
         {/* Left Sidebar: Conversation List */}
         <div
           className={`${
-            showMobileList ? 'block' : 'hidden'
-          } md:block w-full md:w-80 lg:w-96 border-r border-gray-200 h-full shrink-0`}
+            isMobileSidebarVisible ? 'flex flex-col flex-1' : 'hidden'
+          } md:flex md:flex-col w-full md:w-80 lg:w-96 border-r border-gray-200 h-full shrink-0 overflow-hidden`}
         >
           <ConversationList
             conversations={conversations}
@@ -302,7 +329,7 @@ function ChatContent() {
 
         {/* Right Pane: Active Conversation or Empty State */}
         {activeConv ? (
-          <div className="flex-1 flex flex-col h-full min-w-0 bg-gray-50/50">
+          <div className={`${isMobileChatVisible ? 'flex' : 'hidden'} md:flex flex-1 flex-col h-full min-w-0 bg-gray-50/50 overflow-hidden`}>
             {/* Header with WebSocket Status */}
             <NegotiationHeader
               conversation={activeConv}
@@ -343,9 +370,9 @@ function ChatContent() {
                   description="Send a message or submit a counter offer to negotiate produce prices directly."
                 />
               ) : (
-                activeMessages.map((msg) => (
+                activeMessages.map((msg, index) => (
                   <MessageBubble
-                    key={msg.id}
+                    key={msg.id ? `msg-${msg.id}-${index}` : `msg-idx-${index}`}
                     message={msg}
                     isMe={
                       Boolean(user?.uid) && Number(user?.uid) > 0
@@ -367,7 +394,7 @@ function ChatContent() {
             />
           </div>
         ) : (
-          <div className="hidden md:flex flex-1">
+          <div className="hidden md:flex flex-1 flex-col h-full items-center justify-center">
             <EmptyChatState
               title={
                 convError

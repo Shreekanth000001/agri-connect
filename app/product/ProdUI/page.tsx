@@ -2,43 +2,47 @@
 import { useState } from 'react';
 
 export default function ImageGallery({ images }: { images: string[] }) {
-    const hasImages = images && images.length > 0;
-    const [selectedImage, setSelectedImage] = useState<string | null>(hasImages ? images[0] : null);
+    const validImages = Array.isArray(images) && images.length > 0 ? images : ['/agri-conn-logo.png'];
+    const [selectedImage, setSelectedImage] = useState<string>(validImages[0]);
 
-    if (!hasImages) {
-        return <div className="aspect-square w-full rounded-lg bg-gray-200 flex items-center justify-center text-gray-500">No images available</div>;
-    }
-
-    const mainImage = selectedImage || images[0];
-    const colCount = Math.min(images.length, 5);
+    const mainImage = selectedImage || validImages[0];
+    const isMultiImage = validImages.length > 1;
 
     return (
-        <div className="flex flex-col gap-4 justify-center items-center">
-            {/* The Big Main Image */}
-            <div className="sm:w-160 sm:h-160 overflow-hidden rounded-lg bg-gray-100">
+        <div className="flex flex-col gap-4 items-center w-full">
+            {/* Main Hero Image */}
+            <div className="w-full max-w-lg aspect-square overflow-hidden rounded-2xl bg-gray-100 border border-gray-200/80 shadow-sm flex items-center justify-center">
                 <img 
                     src={mainImage} 
-                    alt="Product main" 
-                    className="aspect-square h-fit w-fit object-cover object-center" 
+                    alt="Product main hero" 
+                    className="w-full h-full object-cover object-center transition-all duration-300" 
                 />
             </div>
 
-            {/* The Row of Thumbnails */}
-            <div 
-                className="grid grid-cols-3 gap-4"
-                style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
-            >
-                {images.map((img, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => setSelectedImage(img)}
-                        className={`relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-md bg-white 
-                        ${mainImage === img ? 'ring-2 ring-[#009C25] ring-offset-2' : 'ring-1 ring-gray-200'}`}
-                    >
-                        <img src={img} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover object-center" />
-                    </button>
-                ))}
-            </div>
+            {/* Thumbnail Row (Only displayed if product has multiple photos) */}
+            {isMultiImage && (
+                <div className="flex flex-wrap gap-3 justify-center items-center mt-1">
+                    {validImages.map((img, idx) => (
+                        <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setSelectedImage(img)}
+                            className={`relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl bg-white border transition-all duration-200 ${
+                                mainImage === img 
+                                    ? 'border-[#009C25] ring-2 ring-[#009C25]/30 shadow-md scale-105' 
+                                    : 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-400'
+                            }`}
+                        >
+                            <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover object-center" />
+                            {mainImage === img && (
+                                <span className="absolute bottom-0 inset-x-0 bg-[#009C25] text-white text-[8px] font-bold text-center py-0.5">
+                                    Active
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

@@ -16,6 +16,10 @@ export default function AucForm() {
         console.log(newUrl);
     };
 
+    const handleRemoveImg = (indexToRemove: number) => {
+        setImgs((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    };
+
     return (
         <div className='px-6 md:px-[20%] mt-6 pb-10'>
             <form action={AucFormSubmit}>
@@ -135,7 +139,85 @@ export default function AucForm() {
                                     </div>
                                 </div>
                             </div>
-{/* 1. Limit Message: Only renders if limit is reached */}
+
+                            {/* Sandwich Layer Image Preview Component */}
+                            {imgs.length > 0 && (
+                                <div className="col-span-full mt-2 p-5 bg-green-50/50 rounded-2xl border border-green-200/80 shadow-xs">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-[#009C25] animate-pulse"></span>
+                                            <h4 className="text-sm font-bold text-gray-900">
+                                                Uploaded Product Photos ({imgs.length}/5)
+                                            </h4>
+                                        </div>
+                                        <span className="text-xs font-semibold text-[#009C25] bg-green-100/80 px-2.5 py-1 rounded-full border border-green-200">
+                                            ✓ Ready for Auction
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                                        {/* Sandwich Stack Deck Visual */}
+                                        <div className="relative w-32 h-24 flex-shrink-0 flex items-center justify-center">
+                                            {imgs.map((url, idx) => {
+                                                if (idx > 2) return null;
+                                                const rotation = idx === 0 ? 'rotate-0' : idx === 1 ? 'rotate-6 translate-x-2' : '-rotate-6 -translate-x-2';
+                                                const zIndex = idx === 0 ? 'z-20' : idx === 1 ? 'z-10' : 'z-0';
+                                                const opacity = idx === 0 ? 'opacity-100' : idx === 1 ? 'opacity-85' : 'opacity-70';
+
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`absolute inset-0 rounded-xl overflow-hidden border-2 border-white shadow-md transition-all duration-300 transform ${rotation} ${zIndex} ${opacity}`}
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={`Uploaded preview ${idx + 1}`}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        {idx === 0 && (
+                                                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
+                                                                Cover
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Thumbnail Strip with Delete Buttons */}
+                                        <div className="flex-1 w-full">
+                                            <p className="text-xs text-gray-500 mb-2 font-medium">Uploaded photos (hover/tap ✕ to remove):</p>
+                                            <div className="flex flex-wrap gap-2.5">
+                                                {imgs.map((url, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="relative group w-14 h-14 rounded-lg overflow-hidden border border-gray-200 shadow-xs bg-white shrink-0"
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={`Thumbnail ${idx + 1}`}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveImg(idx)}
+                                                            className="absolute top-1 right-1 w-5 h-5 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-transform transform hover:scale-110"
+                                                            title="Remove photo"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-medium text-center py-0.5">
+                                                            {idx === 0 ? 'Cover' : `#${idx + 1}`}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 1. Limit Message: Only renders if limit is reached */}
                             {imgLimit && (
                                 <div className="col-span-full p-4 mt-2 bg-red-50 text-red-600 rounded-md font-medium text-sm text-center border border-red-200">
                                     Image Limit Reached: 5

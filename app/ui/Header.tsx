@@ -112,10 +112,10 @@ export default function Header() {
                     )}
                 </div>
 
-                {/* Logo & Brand Name */}
-                <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+                {/* Logo & Brand Name (Hidden on Mobile view < sm) */}
+                <Link href="/" className="hidden sm:flex items-center gap-2 hover:opacity-90 transition-opacity">
                     <img src="/agri-conn-logo.png" alt="Agri-Connect Logo" className="h-8 w-8 sm:h-10 sm:w-10 object-contain"/>
-                    <span className="font-bold text-xl text-[#009C25] hidden sm:block tracking-tight">Agri-Connect</span>
+                    <span className="font-bold text-xl text-[#009C25] tracking-tight">Agri-Connect</span>
                 </Link>
             </div>
 
