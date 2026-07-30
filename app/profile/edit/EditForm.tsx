@@ -2,12 +2,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { updateUserProfile } from '@/lib/api/userService';
+import { useAccessToken } from '@/lib/hooks/useAccessToken';
 
 export default function EditForm({ initialPhone, initialLoc }: { initialPhone: string, initialLoc: string }) {
-    // State is initialized with the data we fetched from the Server Component
     const [phone, setPhone] = useState(initialPhone);
     const [loc, setLoc] = useState(initialLoc);
     const [isPending, setIsPending] = useState(false);
+    const { token } = useAccessToken();
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -15,21 +17,14 @@ export default function EditForm({ initialPhone, initialLoc }: { initialPhone: s
         setIsPending(true);
 
         try {
-            // Talk to our custom API route
-            const res = await fetch('/api/profile', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uphone: phone, uloc: loc })
-            });
+            const res = await updateUserProfile({ uphone: phone, uloc: loc }, token);
 
-            const data = await res.json();
-
-            if (data.success) {
+            if (res.data && !res.error) {
                 alert("Profile updated successfully!");
-                router.push('/profile'); // Send them back to their profile
-                router.refresh(); // Force Next.js to fetch the new data
+                router.push('/profile');
+                router.refresh();
             } else {
-                alert("Error: " + data.message);
+                alert("Error: " + (res.error || "Failed to update profile."));
             }
         } catch (error) {
             console.error("Network Error:", error);

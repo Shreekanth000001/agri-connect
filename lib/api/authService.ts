@@ -58,7 +58,7 @@ export async function signupUser(params: SignupParams): Promise<ApiClientRespons
     role: params.role,
   };
 
-  const res = await apiClient.post<AuthResponse>('/auth/signup', payload);
+  const res = await apiClient.post<AuthResponse>('/auth/register', payload);
 
   if (res.data) {
     const rawUser = (res.data.user || res.data) as Record<string, unknown>;

@@ -12,7 +12,7 @@ export async function signup(formData: FormData) {
     const ph = String(formData.get('ph'));
     const loc = String(formData.get('loc'));
 
-    const apiRes = await apiClient.post<Record<string, unknown>>('/auth/signup', {
+    const apiRes = await apiClient.post<Record<string, unknown>>('/auth/register', {
       name,
       uname: name,
       email,
