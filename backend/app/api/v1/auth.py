@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from app.api.deps import SessionDep, CurrentUser
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.models.user import User
+from app.models.user import User, Role
 from app.schemas.token import Token
 from app.schemas.user import UserCreate, User as UserSchema
 
@@ -15,6 +15,7 @@ async def register(user_in: UserCreate, db: SessionDep):
     if result.scalars().first():
         raise HTTPException(status_code=409, detail="Email already registered")
     
+    role_val = Role(user_in.role) if user_in.role else Role.FARMER
     db_user = User(
         uname=user_in.uname,
         uemail=user_in.uemail,
@@ -22,7 +23,7 @@ async def register(user_in: UserCreate, db: SessionDep):
         uphone=user_in.uphone,
         ugeo=user_in.ugeo,
         uloc=user_in.uloc,
-        role=user_in.role
+        role=role_val
     )
     db.add(db_user)
     await db.commit()

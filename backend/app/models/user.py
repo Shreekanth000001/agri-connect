@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime
+from sqlalchemy import String, Integer, DateTime, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -19,7 +19,7 @@ class User(Base):
     uphone: Mapped[str] = mapped_column(String, default="")
     ugeo: Mapped[str] = mapped_column(String, nullable=False)
     uloc: Mapped[str] = mapped_column(String, default="")
-    role: Mapped[Role] = mapped_column(default=Role.FARMER)
+    role: Mapped[Role] = mapped_column(Enum(Role, name="Role", values_callable=lambda x: [e.value for e in x]), default=Role.FARMER)
     ujoinedAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     # Relationships

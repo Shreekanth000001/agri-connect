@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime
+from sqlalchemy import String, Integer, DateTime, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -17,5 +17,5 @@ class ContactMessage(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String, nullable=False)
     message: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[MessageStatus] = mapped_column(default=MessageStatus.UNREAD)
+    status: Mapped[MessageStatus] = mapped_column(Enum(MessageStatus, name="MessageStatus", values_callable=lambda x: [e.value for e in x]), default=MessageStatus.UNREAD)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=func.now())
