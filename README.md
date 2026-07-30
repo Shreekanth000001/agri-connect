@@ -90,9 +90,9 @@ npm run build
 
 ## 📸 Screenshots
 
-<img alt="Screenshot from 2026-03-29 09-56-38" src="https://github.com/user-attachments/assets/addcd983-ecd8-46c7-9929-d24fc6f55607" />
-<img alt="Screenshot from 2026-03-29 09-57-03" src="https://github.com/user-attachments/assets/c4a65e43-d0d2-4e8c-a84b-b51b50274ae1" />
-<img alt="Screenshot from 2026-03-29 09-58-10" src="https://github.com/user-attachments/assets/b4f90715-417c-4bc0-9330-0dbed205c5f1" />
+<img width="1834" height="962" alt="Screenshot from 2026-07-30 19-54-31" src="https://github.com/user-attachments/assets/1aa60458-6f4d-45ac-b897-1ff2f9d4b92c" />
+<img width="1834" height="962" alt="Screenshot from 2026-07-30 19-55-38" src="https://github.com/user-attachments/assets/3bfa009e-469a-4366-94d4-15265aef49fa" />
+<img width="1834" height="962" alt="Screenshot from 2026-07-30 19-57-47" src="https://github.com/user-attachments/assets/471f9374-ac46-433a-8c59-4aa0c62f1c98" />
 
 ---
 
