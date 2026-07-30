@@ -22,6 +22,7 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        e.stopPropagation();
         setError(null);
         setIsLoading(true);
 
@@ -39,7 +40,7 @@ export default function RegisterPage() {
         const fullPhone = `+${cnum} ${ph}`;
 
         try {
-            const response = await fetch('/auth/signupauth', { // Make sure this path matches your route!
+            const response = await fetch('/auth/signupauth', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -52,19 +53,18 @@ export default function RegisterPage() {
                     role: role // From state
                 })
             });
-            console.log("hiii");
+
             const data = await response.json();
 
             if (!response.ok) {
                 setError(data.error || "Registration failed. Please try again.");
             } else {
-                // Success! Send them straight into the app
-                router.push('/');
-                router.refresh(); // This forces the Header to re-render so it shows the Log Out button!
+                // Success! Force hard navigation to refresh all session cookies and state
+                window.location.href = '/';
             }
 
         } catch (err) {
-            console.error(err);
+            console.error("Signup request failed:", err);
             setError("Network error. Please check your connection.");
         } finally {
             setIsLoading(false);
